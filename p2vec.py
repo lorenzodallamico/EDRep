@@ -281,6 +281,46 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, walk_length = 1, k 
 
     return ReturnValue(Φ, Ψ, ℓin, ℓout, π, μ, σ2, time.time() - t0)
 
+
+def ComputeZest(Φ, indeces, k = 20, Ψ = None):
+    '''
+    This function computes the partition function for a set of indeces
+    
+    Use: Z = ComputeZest(Φ, indeces)
+    
+    Inputs:
+        * Φ (array): embedding to compute the softmax
+        * indeces (array): indeces for which the partition function should be computed
+        
+    Optional inputs:
+        * k (int): order of the mixture of Gaussian approximation. By default set to 20
+        * Ψ (array): embedding of the output layer, used for the non-symmetric model. By default set to None
+        
+    Output:
+        * Z (array): vector of estimated partition functions (of the samesize of indeces)'''
+
+    if Ψ == None: 
+        
+        gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Φ)
+        ℓ = gm.predict(Φ)
+        μ = np.array([np.mean(Φ[ℓ == a], axis = 0) for a in range(k)])
+        σ2 = np.array([np.var(Φ[ℓ == a], axis = 0) for a in range(k)])
+        π = np.array([np.sum(ℓ == a) for a in range(k)])
+        
+    else:
+        
+        if Φ.shape != Ψ.shape:
+            raise DeprecationWarning("The input and output weight matrices have inconsistent shapes")
+        
+        gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Ψ)
+        ℓ = gm.predict(Ψ)
+        μ = np.array([np.mean(Ψ[ℓ == a], axis = 0) for a in range(k)])
+        σ2 = np.array([np.var(Ψ[ℓ == a], axis = 0) for a in range(k)])
+        π = np.array([np.sum(ℓ == a) for a in range(k)])
+
+
+    return np.exp(Φ[indeces]@μ.T + 0.5*Φ[indeces]**2@σ2.T)@π
+
 ######################################################################################
 ######################################################################################
 ######################################################################################
