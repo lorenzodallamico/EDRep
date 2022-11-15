@@ -16,6 +16,7 @@
 import numpy as np
 from sklearn.preprocessing import normalize
 from sklearn.mixture import GaussianMixture
+import faiss
 from scipy.sparse import diags
 import matplotlib.pyplot as plt
 import time
@@ -123,7 +124,8 @@ class ReturnValue:
         y = np.zeros(len(t))
         
         for a in range(k):
-            y += π[a]*np.exp(-(t-m[a])**2/(2*v[a]))/np.sqrt(2*np.pi*v[a])
+            if v[a] > 0:
+                y += π[a]*np.exp(-(t-m[a])**2/(2*v[a]))/np.sqrt(2*np.pi*v[a])
             
         plt.plot(t, y, color = linecolor)
         
@@ -134,11 +136,12 @@ class ReturnValue:
 
 
 def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, walk_length = 1, k = 8, η0 = 1., ηfin = 10**(-6), 
-          γ = 1., symmetric = True, verbose = True, scheduler_type = 'exponential', recompute_labels = True):
+          γ = 1., symmetric = True, verbose = True, scheduler_type = 'exponential', recompute_labels = True,
+          est_method = 'KM'):
     '''
     This is the implementation of P2Vec
     
-    Use: p2v = P2Vec(P)
+    Use: p2v = CreateEmbedding(P)
     
     Inputs:
         * Pv (list sparse array): the P matrix is provided by the product of all the elements appearing in Pv. Note the use of the `walk_length` parameter in the case in which P is the sum of powers of a given matrix.
@@ -159,6 +162,9 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, walk_length = 1, k 
             + 'linear': in this case the difference between two successive updates is a constant
             + 'exponential': in this case the ratio between two successive updates is a constant. This is the default value
         * recompute_labels (bool): if set to True (default value) it will recompute the labels obtained with the Gaussian mixture model after convergence, otherwise the output will give the ones computed before the last optimization
+        * est_method (string): determines the algorithm to estimate the mixture of Gaussian parameters. The options are
+            + 'KM': uses K-Means algorithm (default)
+            + 'EM': uses expecation maximization
             
     Output:
         * p2v.Φ (array): solution to the optimization problem for the input weights
@@ -219,9 +225,19 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, walk_length = 1, k 
             if verbose:
                 print("\n\nComputing the clusters...")
 
-            # run EM with k centers
-            gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Φ)
-            ℓ = gm.predict(Φ)
+
+            # estimate the mixture of Gaussian parameters
+            if est_method == 'KM':
+                kmeans = faiss.Kmeans(dim, k, verbose = False)
+                kmeans.train(np.ascontiguousarray(Φ).astype('float32'))
+                _, ℓ = kmeans.assign(np.ascontiguousarray(Φ).astype('float32'))
+
+            elif est_method == 'EM':
+                gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Φ)
+                ℓ = gm.predict(Φ)
+
+            else:
+                raise DeprecationWarning("The selected estimation method is not valid")
 
             if verbose:
                 print("Running the optimization for k = " + str(k))
@@ -238,8 +254,14 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, walk_length = 1, k 
         Ψ = 'Not available'
         
         if recompute_labels:
-            gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Φ)
-            ℓin = gm.predict(Φ)
+            if est_method == 'KM':
+                kmeans = faiss.Kmeans(dim, k, verbose = False)
+                kmeans.train(np.ascontiguousarray(Φ).astype('float32'))
+                _, ℓin = kmeans.assign(np.ascontiguousarray(Φ).astype('float32'))
+
+            elif est_method == 'EM':
+                gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Φ)
+                ℓin = gm.predict(Φ)
             ℓout = 'Not available'
         else:
             ℓin = ℓ
@@ -256,9 +278,18 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, walk_length = 1, k 
 
         if k > 1:
 
-            # run EM with k centers
-            gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Ψ)
-            ℓ = gm.predict(Ψ)
+            # estimate the mixture of Gaussians parameters
+            if est_method == 'KM':
+                kmeans = faiss.Kmeans(dim, k, verbose = False)
+                kmeans.train(np.ascontiguousarray(Ψ).astype('float32'))
+                _, ℓ = kmeans.assign(np.ascontiguousarray(Ψ).astype('float32'))
+
+            elif est_method == 'EM':
+                gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Ψ)
+                ℓ = gm.predict(Ψ)
+
+            else:
+                raise DeprecationWarning("The selected estimation method is not valid")
 
             if verbose:
                 print("\n\nRunning the optimization for k = " + str(k))
@@ -267,10 +298,21 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, walk_length = 1, k 
             Φ, Ψ = _OptimizeASym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, scheduler_type, verbose)
             
             if recompute_labels:
-                gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Φ)
-                ℓin = gm.predict(Φ)
-                gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Ψ)
-                ℓout = gm.predict(Ψ)
+                if est_method == 'KM':
+                    kmeans = faiss.Kmeans(dim, k, verbose = False)
+
+                    kmeans.train(np.ascontiguousarray(Φ).astype('float32'))
+                    _, ℓin = kmeans.assign(np.ascontiguousarray(Φ).astype('float32'))
+
+                    kmeans.train(np.ascontiguousarray(Ψ).astype('float32'))
+                    _, ℓout = kmeans.assign(np.ascontiguousarray(Ψ).astype('float32'))
+
+                elif est_method == 'EM':
+                    gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Φ)
+                    ℓin = gm.predict(Φ)
+
+                    gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Ψ)
+                    ℓout = gm.predict(Ψ)
             else:
                 ℓin = 'Not available'
                 ℓout = ℓ
@@ -281,56 +323,16 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, walk_length = 1, k 
 
     return ReturnValue(Φ, Ψ, ℓin, ℓout, π, μ, σ2, time.time() - t0)
 
-
-def ComputeZest(Φ, indeces, k = 20, Ψ = None):
-    '''
-    This function computes the partition function for a set of indeces
-    
-    Use: Z = ComputeZest(Φ, indeces)
-    
-    Inputs:
-        * Φ (array): embedding to compute the softmax
-        * indeces (array): indeces for which the partition function should be computed
-        
-    Optional inputs:
-        * k (int): order of the mixture of Gaussian approximation. By default set to 20
-        * Ψ (array): embedding of the output layer, used for the non-symmetric model. By default set to None
-        
-    Output:
-        * Z (array): vector of estimated partition functions (of the samesize of indeces)'''
-
-    if Ψ == None: 
-        
-        gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Φ)
-        ℓ = gm.predict(Φ)
-        μ = np.array([np.mean(Φ[ℓ == a], axis = 0) for a in range(k)])
-        σ2 = np.array([np.var(Φ[ℓ == a], axis = 0) for a in range(k)])
-        π = np.array([np.sum(ℓ == a) for a in range(k)])
-        
-    else:
-        
-        if Φ.shape != Ψ.shape:
-            raise DeprecationWarning("The input and output weight matrices have inconsistent shapes")
-        
-        gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Ψ)
-        ℓ = gm.predict(Ψ)
-        μ = np.array([np.mean(Ψ[ℓ == a], axis = 0) for a in range(k)])
-        σ2 = np.array([np.var(Ψ[ℓ == a], axis = 0) for a in range(k)])
-        π = np.array([np.sum(ℓ == a) for a in range(k)])
-
-
-    return np.exp(Φ[indeces]@μ.T + 0.5*Φ[indeces]**2@σ2.T)@π
-
 ######################################################################################
 ######################################################################################
 ######################################################################################
 
 
-def _UpdateLearningRate(η0, ηfin, epoch, n_epochs, scheduler_type):
+def UpdateLearningRate(η0, ηfin, epoch, n_epochs, scheduler_type):
     '''
     This function is used to update the learning rate at each iteration.
     
-    Use: η = _UpdateLearningRate(η0, ηfin, epoch, n_epochs, scheduler_type)
+    Use: η = UpdateLearningRate(η0, ηfin, epoch, n_epochs, scheduler_type)
     
     Inputs:
         * η0 (float): the learning rate at the first iteration
@@ -379,7 +381,7 @@ def _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, schedu
         * η0 (float): initial learning rate.
         * ηfin (float): final learning rate.
         * γ (float): In the case in which P is the sum of powers of matrix M, `γ` is a weight between 0 and 1 multipling M.
-        * scheduler_type (string): the type of desired update. Refer to the function `_UpdateLearningRate` for further details
+        * scheduler_type (string): the type of desired update. Refer to the function `UpdateLearningRate` for further details
         * verbose (bool): determines whether the algorithm produces some output for the updates.
     Output:
         * Φ (array): solution to the optimization problem. Its size is n x dim
@@ -391,11 +393,14 @@ def _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, schedu
     
     # initialize the weights
     Φ = np.random.uniform(-1,1, (n, dim))
+
+    # normalize the embedding vectors
+    Φ = normalize(Φ, norm = 'l2', axis = 1)    
     
     for epoch in range(n_epochs):
         
         # update the learning rate
-        η = _UpdateLearningRate(η0, ηfin, epoch, n_epochs, scheduler_type)
+        η = UpdateLearningRate(η0, ηfin, epoch, n_epochs, scheduler_type)
         
         # print update
         if verbose:
@@ -429,7 +434,7 @@ def _OptimizeASym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, sched
         * η0 (float): initial learning rate.
         * ηfin (float): final learning rate.
         * γ (float): In the case in which P is the sum of powers of matrix M, `γ` is a weight between 0 and 1 multipling M.
-        * scheduler_type (string): the type of desired update. Refer to the function `_UpdateLearningRate` for further details
+        * scheduler_type (string): the type of desired update. Refer to the function `UpdateLearningRate` for further details
         * verbose (bool): determines whether the algorithm produces some output for the updates.
     Output:
         * Φ (array): solution to the optimization problem for the input weights. Its size is n x dim
@@ -443,11 +448,16 @@ def _OptimizeASym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, sched
     # initialize the weights
     Φ = np.random.uniform(-1,1, (n, dim))
     Ψ = np.random.uniform(-1,1, (n, dim))
+
+    # normalize the embedding vectors
+    Φ = normalize(Φ, norm = 'l2', axis = 1)
+    Ψ = normalize(Ψ, norm = 'l2', axis = 1)
+    
     
     for epoch in range(n_epochs):
         
         # set the learning rate
-        η = _UpdateLearningRate(η0, ηfin, epoch, n_epochs, scheduler_type)
+        η = UpdateLearningRate(η0, ηfin, epoch, n_epochs, scheduler_type)
         
         # print update
         if verbose:
