@@ -248,7 +248,7 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 15, n_epochs_before_res
                 print("Running the optimization for k = " + str(k))
             
             # re-run the optimization
-            Φ = _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epocs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose)
+            Φ = _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose)
             
         if verbose:
             print("\n\nComputing the parameters values...")
