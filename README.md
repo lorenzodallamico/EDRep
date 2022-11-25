@@ -35,3 +35,4 @@ This `README` has to be completed and improved
 - [ ] Understand better how to use the scheduler of the learning rate.
 - [ ] Parallelize gradient descent
 - [ ] Consider different types of normalization (l2, l4, lp, linfty)
+- [ ] Consider if going back to AdamW
