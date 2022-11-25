@@ -31,3 +31,5 @@ This `README` has to be completed and improved
 - [ ] Check the code and simplify it where possible. Take care to see if it is possible to obtain some improvements in terms of complexity.
 - [ ] Write a decent documentation.
 - [ ] Write a paper.
+- [ ] Sparsify the matrix P for Word2Vec
+- [ ] Understand better how to use the scheduler of the learning rate.

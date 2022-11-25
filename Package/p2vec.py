@@ -135,9 +135,9 @@ class ReturnValue:
     
 
 # CHECK THE MATRIZ SIZES
-def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, walk_length = 1, k = 8, η0 = 1., ηfin = 10**(-6), 
-          γ = 1., symmetric = True, verbose = True, scheduler_type = 'mixed', recompute_labels = False,
-          est_method = 'KM'):
+def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 15, n_epochs_before_rescheduling = 5, walk_length = 1, k = 8, η0 = 1., 
+                    ηfin = 10**(-6), γ = 1., symmetric = True, verbose = True, scheduler_type = 'mixed', 
+                    recompute_labels = False, est_method = 'KM'):
     '''
     This is the implementation of P2Vec
     
@@ -150,6 +150,7 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, walk_length = 1, k 
         * Λ (sparse diagonal matrix): weight given to each element in the cost function. If it is set to `None` (default), then it is considered to be the identity matrix
         * dim (int): dimension of the embedding. By default set to 128
         * n_epochs (int): number of iterations in the optimization process. By default set to 20
+        * n_epochs_before_rescheduling (int): number of epochs before updating the learning rate. Note that the total number of epochs will be `n_epochs*n_epochs_before_rescheduling`. By default set to 5.
         * walk_length (int): if P can be written as the sum of powers of a single matrix, `walk_lenght` is the largest of these powers. By default set to 1.
         * k (int): order of the EM approximation. By default set to 8
         * η0 (float): initial learning rate. By default set to 1.
@@ -223,7 +224,7 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, walk_length = 1, k 
             print('Running the optimization for k = 1')
          
         # run the optimization
-        Φ = _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, scheduler_type, verbose)
+        Φ = _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose)
 
         if k > 1:
 
@@ -247,7 +248,7 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, walk_length = 1, k 
                 print("Running the optimization for k = " + str(k))
             
             # re-run the optimization
-            Φ = _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, scheduler_type, verbose)
+            Φ = _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epocs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose)
             
         if verbose:
             print("\n\nComputing the parameters values...")
@@ -278,7 +279,7 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, walk_length = 1, k 
             print('Running the optimization for k = 1')
          
         # run the optimization
-        Φ, Ψ = _OptimizeASym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, scheduler_type, verbose)
+        Φ, Ψ = _OptimizeASym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epohcs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose)
 
         if k > 1:
 
@@ -383,7 +384,7 @@ def UpdateLearningRate(η0, ηfin, epoch, n_epochs, scheduler_type):
     return η
 
 
-def _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, scheduler_type, verbose):
+def _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose):
     '''
     This function runs the optimization for the symmetric version of the algorithm
     
@@ -396,6 +397,7 @@ def _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, schedu
         * walk_length (int): if P can be written as the sum of powers of a single matrix, `walk_lenght` is the largest of these powers.
         * dim (int): dimension of the embedding.
         * n_epochs (int): number of iterations in the optimization process.
+        * n_epochs_before_rescheduling (int): number of epochs before updating the learning rate. 
         * η0 (float): initial learning rate.
         * ηfin (float): final learning rate.
         * γ (float): In the case in which P is the sum of powers of matrix M, `γ` is a weight between 0 and 1 multipling M.
@@ -425,19 +427,19 @@ def _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, schedu
             print("[%-25s] %d%%, η = %f" % ('='*(int((epoch+1)/n_epochs*25)-1) + '>', (epoch+1)/(n_epochs)*100, η), end = '\r')
 
         # compute the gradient and update the weights
-        GRAD = _computeGradSym(Pv, Λ, Φ, ℓ, γ, walk_length)
-        Φ = Φ - η*GRAD
+        for i in range(n_epochs_before_rescheduling):
+            GRAD = _computeGradSym(Pv, Λ, Φ, ℓ, γ, walk_length)
+            Φ = Φ - η*GRAD
 
-        # shift the mean to zero
-        Φ = (Φ.T - np.reshape(np.mean(Φ, axis = 0), (dim, 1))).T 
-        
-        # normalize the embedding vectors
-        Φ = normalize(Φ, norm = 'l2', axis = 1)
-     
-        
+            # shift the mean to zero
+            Φ = (Φ.T - np.reshape(np.mean(Φ, axis = 0), (dim, 1))).T 
+
+            # normalize the embedding vectors
+            Φ = normalize(Φ, norm = 'l2', axis = 1)
+    
     return Φ
 
-def _OptimizeASym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, scheduler_type, verbose):
+def _OptimizeASym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose):
     '''
     This function runs the optimization for the non-symmetric version of the algorithm
     
@@ -450,6 +452,7 @@ def _OptimizeASym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, sched
         * walk_length (int): if P can be written as the sum of powers of a single matrix, `walk_lenght` is the largest of these powers.
         * dim (int): dimension of the embedding. 
         * n_epochs (int): number of iterations in the optimization process.
+        * n_epochs_before_rescheduling (int): number of epochs before updating the learning rate. 
         * η0 (float): initial learning rate.
         * ηfin (float): final learning rate.
         * γ (float): In the case in which P is the sum of powers of matrix M, `γ` is a weight between 0 and 1 multipling M.
@@ -484,17 +487,18 @@ def _OptimizeASym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, sched
 
 
         # compute the gradient and update the weights
-        GRADΦ, GRADΨ = _computeGradASym(Pv, Λ, Φ, Ψ, ℓ, γ, walk_length)
-        Φ = Φ - η*GRADΦ
-        Ψ = Ψ - η*GRADΨ
+        for i in range(n_epohcs_before_rescheduling):
+            GRADΦ, GRADΨ = _computeGradASym(Pv, Λ, Φ, Ψ, ℓ, γ, walk_length)
+            Φ = Φ - η*GRADΦ
+            Ψ = Ψ - η*GRADΨ
 
-        # shift the mean to zero
-        Φ = (Φ.T - np.reshape(np.mean(Φ, axis = 0), (dim, 1))).T        
-        Ψ = (Ψ.T - np.reshape(np.mean(Ψ, axis = 0), (dim, 1))).T
-        
-        # normalize the embedding vectors
-        Φ = normalize(Φ, norm = 'l2', axis = 1)
-        Ψ = normalize(Ψ, norm = 'l2', axis = 1)
+            # shift the mean to zero
+            Φ = (Φ.T - np.reshape(np.mean(Φ, axis = 0), (dim, 1))).T        
+            Ψ = (Ψ.T - np.reshape(np.mean(Ψ, axis = 0), (dim, 1))).T
+
+            # normalize the embedding vectors
+            Φ = normalize(Φ, norm = 'l2', axis = 1)
+            Ψ = normalize(Ψ, norm = 'l2', axis = 1)
         
     return Φ, Ψ
 
