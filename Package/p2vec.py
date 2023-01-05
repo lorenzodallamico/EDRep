@@ -25,15 +25,14 @@ import time
 
 
 class ReturnValue:
-    def __init__(self, Φ, Ψ, ℓin, ℓout, π, μ, σ2, exec_time):
+    def __init__(self, Φ, ℓin, π, μ, σ2, exec_time, loss):
         self.Φ = Φ
-        self.Ψ = Ψ
         self.ℓin = ℓin
-        self.ℓout = ℓout
         self.π = π
         self.μ = μ
         self.σ2 = σ2
         self.exec_time = exec_time
+        self.loss = loss
         
         
     def computeZest(self, i):
@@ -67,19 +66,15 @@ class ReturnValue:
         '''
         
         Φ = self.Φ
-        Ψ = self.Ψ
         
-        if Ψ == 'Not available':
-            return np.sum(np.exp(Φ[i]@Φ.T))
+        return np.sum(np.exp(Φ[i]@Φ.T))
         
-        else:
-            return np.sum(np.exp(Φ[i]@Ψ.T))
         
         
         
     def plotDistr(self, i,  *args, **kwargs):
         '''
-        This function plots the histogram of the scalar product entering the parition function and compares it to the theoretical value
+        This function plots the histogram of the scalar product entering the partition function and compares it to the theoretical value
         
         Use: p2v.plotDistr(i)
         
@@ -101,7 +96,6 @@ class ReturnValue:
         linecolor = kwargs.get('linecolor', 'k')
         
         Φ = self.Φ
-        Ψ = self.Ψ
         μ = self.μ
         σ2 = self.σ2
         π = self.π
@@ -111,10 +105,7 @@ class ReturnValue:
         
         plt.figure(figsize = figsize)
         
-        if Ψ == 'Not available':
-            plt.hist(Φ[i]@Φ.T, bins = bins, color = color, edgecolor = edgecolor, density = True)
-        else:
-            plt.hist(Φ[i]@Ψ.T, bins = bins, color = color, edgecolor = edgecolor, density = True)
+        plt.hist(Φ[i]@Φ.T, bins = bins, color = color, edgecolor = edgecolor, density = True)
             
             
         m = [Φ[i]@μ[a] for a in range(k)]
@@ -134,10 +125,11 @@ class ReturnValue:
         return
     
 
-# CHECK THE MATRIZ SIZES
-def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 15, n_epochs_before_rescheduling = 5, walk_length = 1, k = 8, η0 = 1., 
-                    ηfin = 10**(-6), γ = 1., symmetric = True, verbose = True, scheduler_type = 'mixed', 
-                    recompute_labels = False, est_method = 'KM'):
+# CHECK THE MATRIX SIZES
+def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 20, n_epochs_before_rescheduling = 1, walk_length = 1, k = 8, η0 = 1., 
+                    ηfin = 10**(-6), γ = 1., verbose = True, scheduler_type = 'linear', 
+                    recompute_labels = False, est_method = 'KM', optimizer = None, seed = None, normalizeΦ = True, rescaleΦ = None, 
+                    clipping = False, compute_loss = False):
     '''
     This is the implementation of P2Vec
     
@@ -150,34 +142,42 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 15, n_epochs_before_res
         * Λ (sparse diagonal matrix): weight given to each element in the cost function. If it is set to `None` (default), then it is considered to be the identity matrix
         * dim (int): dimension of the embedding. By default set to 128
         * n_epochs (int): number of iterations in the optimization process. By default set to 20
-        * n_epochs_before_rescheduling (int): number of epochs before updating the learning rate. Note that the total number of epochs will be `n_epochs*n_epochs_before_rescheduling`. By default set to 5.
+        * n_epochs_before_rescheduling (int): number of epochs before updating the learning rate. By default set to 1.
         * walk_length (int): if P can be written as the sum of powers of a single matrix, `walk_lenght` is the largest of these powers. By default set to 1.
         * k (int): order of the EM approximation. By default set to 8
         * η0 (float): initial learning rate. By default set to 1.
         * ηfin (float): final learning rate. By default set to 10**(-6).
         * γ (float): In the case in which P is the sum of powers of matrix M, `γ` is a weight between 0 and 1 multipling M. By default set to 1.
-        * symmetric (bool): determines whether to use the symmmetric or the asymmetric version of the algorithm. By default set to True
         * verbose (bool): determines whether the algorithm produces some output for the updates. By default set to True
         * scheduler_type (string): sets the type of the update for the learning parameters. The available options are:
             + 'constant': in this case the learning rate is simply set equal to η0
-            + 'linear': in this case the difference between two successive updates is a constant
+            + 'linear': in this case the difference between two successive updates is a constant. This is the default value
             + 'exponential': in this case the ratio between two successive updates is a constant.
-            + 'mixed': it does half of the steps with a linear decay up to η = 0.01 and then it continues with an exponential decay. This is the default value
+            + 'mixed': it does n-3 rescheduling steps with a linear decay up to η = 0.01 and then it continues with an exponential decay.
             
         * recompute_labels (bool): if set to True it will recompute the labels obtained with the Gaussian mixture model after convergence, otherwise the output will give the ones computed before the last optimization. By default set to False
         * est_method (string): determines the algorithm to estimate the mixture of Gaussian parameters. The options are
             + 'KM': uses K-Means algorithm (default)
             + 'EM': uses expecation maximization
+        * optimizer: select optimizer different from default gradient descent (default = None). The available options are:
+            + 'AdamW': perform AdamW optimization with default parameters
+        * seed (int): initialize random state for reproducibility. By default is set to None
+        * normalizeΦ (bool): normalize the embeddings matrix after each epoch of the optimization process. Default value is True
+        * rescaleΦ (array): if normalizeΦ = True, rescale each row of Φ by a value proportional to rescaleΦ. Default is set to None
+        * clipping (bool): gradient clipping. Threshold is set as sqrt(dim). Default value is False 
+        * compute_loss (bool): output loss function (up to a constant) for each iteration. Default is set to False
+        
+
             
     Output:
         * p2v.Φ (array): solution to the optimization problem for the input weights
         * p2v.Ψ (array): solution to the optimization problem for the output weights if the non symmetric version of the algorithm is used
-        * p2v.ℓin (array): label assignment obtained on the input weights
-        * p2v.ℓout (array): label assignment obtained on the output weights if the non symmetric version of the algorithm is used
+        * p2v.ℓin (array): label assignment obtained on the weights
         * p2v.π (array): this vector contains the number of elements in each clusters
         * p2v.μ (array): centers of the weights for each cluster
         * p2v.σ2 (array): variances of the weights for each cluster
         * p2v.exec_time (float): returns the total execution time
+        * p2v.loss (array): if compute_loss = True, returns the loss function (up to a constant) for each epoch
 
     The class further outputs three functions
     * p2v.computeZest
@@ -187,20 +187,22 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 15, n_epochs_before_res
     To see their documentation call (for instance) `p2v.computeZest?`.
     '''
     
-
     t0 = time.time()
 
     # check the size of the matrices and raise an error if they do not all have the same dimension and if they are not square
     nv = np.concatenate(np.array([P.shape for P in Pv]))
 
     # if not (nv == nv[0]).all():
-    #     raise DeprecationWarning("The provided sequence of P matrices has invalid shapes")
+    #     raise Exception("The provided sequence of P matrices has invalid shapes")
 
 
     # check that the walk_length parameter is properly used
     if walk_length > 1 and len(Pv) > 1:
-        raise DeprecationWarning("Both the length of Pv and walk_lenght are greater than one.")
-
+        raise Exception("Both the length of Pv and walk_lenght are greater than one.")
+    
+    # check rescaleΦ dimension, if used
+    if (rescaleΦ is not None) and (rescaleΦ.shape[0] != nv[0]):
+        raise Exception("Inconsistent rescaleΦ dimension.")
 
     # -------------------------------------------------------------------------------------
 
@@ -209,7 +211,7 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 15, n_epochs_before_res
         Λ = diags(np.ones(n))
     else:
         # if Λ.shape[0] != n:
-        #     raise DeprecationWarning("The provided matrix Λ has inconsistent shape with respect to P")
+        #     raise Exception("The provided matrix Λ has inconsistent shape with respect to P")
         # else:
         Λ = Λ.diagonal()
         Λ = diags(Λ/np.mean(Λ)) 
@@ -217,127 +219,64 @@ def CreateEmbedding(Pv, Λ = None, dim = 128, n_epochs = 15, n_epochs_before_res
     # initialize the labels for k = 1
     ℓ = np.zeros(n)
 
-
     # symmetric version of the algorithm
-    if symmetric:
-        if verbose:
-            print('Running the optimization for k = 1')
-         
-        # run the optimization
-        Φ = _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose)
-
-        if k > 1:
-
-            if verbose:
-                print("\n\nComputing the clusters...")
-
-            # estimate the mixture of Gaussian parameters
-            if est_method == 'KM':
-                kmeans = faiss.Kmeans(dim, k, verbose = False)
-                kmeans.train(np.ascontiguousarray(Φ).astype('float32'))
-                _, ℓ = kmeans.assign(np.ascontiguousarray(Φ).astype('float32'))
-
-            elif est_method == 'EM':
-                gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Φ)
-                ℓ = gm.predict(Φ)
-
-            else:
-                raise DeprecationWarning("The selected estimation method is not valid")
-
-            if verbose:
-                print("Running the optimization for k = " + str(k))
-            
-            # re-run the optimization
-            Φ = _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epocs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose)
-            
-        if verbose:
-            print("\n\nComputing the parameters values...")
-            
-        μ = np.array([np.mean(Φ[ℓ == a], axis = 0) for a in range(k)])
-        σ2 = np.array([np.var(Φ[ℓ == a], axis = 0) for a in range(k)])
-        π = np.array([np.sum(ℓ == a) for a in range(k)])
-        Ψ = 'Not available'
+    if verbose:
+        print('Running the optimization for k = 1')
         
-        if recompute_labels:
-            if est_method == 'KM':
-                kmeans = faiss.Kmeans(dim, k, verbose = False)
-                kmeans.train(np.ascontiguousarray(Φ).astype('float32'))
-                _, ℓin = kmeans.assign(np.ascontiguousarray(Φ).astype('float32'))
+    # run the optimization
+    Φ, loss = _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose, optimizer, seed, normalizeΦ, rescaleΦ, clipping, compute_loss)
 
-            elif est_method == 'EM':
-                gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Φ)
-                ℓin = gm.predict(Φ)
-            ℓout = 'Not available'
-        else:
-            ℓin = ℓ
-            ℓout = 'Not available'
+    if k > 1:
 
-
-    # asymmetric version of the algorithm
-    else:
         if verbose:
-            print('Running the optimization for k = 1')
-         
-        # run the optimization
-        Φ, Ψ = _OptimizeASym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epohcs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose)
+            print("\n\nComputing the clusters...")
 
-        if k > 1:
+        # estimate the mixture of Gaussian parameters
+        if est_method == 'KM':
+            kmeans = faiss.Kmeans(dim, k, verbose = False)
+            kmeans.train(np.ascontiguousarray(Φ).astype('float32'))
+            _, ℓ = kmeans.assign(np.ascontiguousarray(Φ).astype('float32'))
 
-            # estimate the mixture of Gaussians parameters
-            if est_method == 'KM':
-                kmeans = faiss.Kmeans(dim, k, verbose = False)
-                kmeans.train(np.ascontiguousarray(Ψ).astype('float32'))
-                _, ℓ = kmeans.assign(np.ascontiguousarray(Ψ).astype('float32'))
+        elif est_method == 'EM':
+            gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Φ)
+            ℓ = gm.predict(Φ)
 
-            elif est_method == 'EM':
-                gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Ψ)
-                ℓ = gm.predict(Ψ)
-
-            else:
-                raise DeprecationWarning("The selected estimation method is not valid")
-
-            if verbose:
-                print("\n\nRunning the optimization for k = " + str(k))
-            
-            # re-run the optimization
-            Φ, Ψ = _OptimizeASym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, scheduler_type, verbose)
-            
-            if recompute_labels:
-                if est_method == 'KM':
-                    kmeans = faiss.Kmeans(dim, k, verbose = False)
-
-                    kmeans.train(np.ascontiguousarray(Φ).astype('float32'))
-                    _, ℓin = kmeans.assign(np.ascontiguousarray(Φ).astype('float32'))
-
-                    kmeans.train(np.ascontiguousarray(Ψ).astype('float32'))
-                    _, ℓout = kmeans.assign(np.ascontiguousarray(Ψ).astype('float32'))
-
-                elif est_method == 'EM':
-                    gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Φ)
-                    ℓin = gm.predict(Φ)
-
-                    gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Ψ)
-                    ℓout = gm.predict(Ψ)
-            else:
-                ℓin = 'Not available'
-                ℓout = ℓ
-            
         else:
-            ℓin = 'Not available'
-            ℓout = ℓ
+            raise Exception("The selected estimation method is not valid")
 
-        μ = np.array([np.mean(Ψ[ℓ == a], axis = 0) for a in range(k)])
-        σ2 = np.array([np.var(Ψ[ℓ == a], axis = 0) for a in range(k)])
-        π = np.array([np.sum(ℓ == a) for a in range(k)])
+        if verbose:
+            print("Running the optimization for k = " + str(k))
+        
+        # re-run the optimization
+        Φ, loss = _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose, optimizer, seed, normalizeΦ, rescaleΦ, clipping, compute_loss)
+        
+    if verbose:
+        print("\n\nComputing the parameters values...")
+        
+    μ = np.array([np.mean(Φ[ℓ == a], axis = 0) for a in range(k)])
+    σ2 = np.array([np.var(Φ[ℓ == a], axis = 0) for a in range(k)])
+    π = np.array([np.sum(ℓ == a) for a in range(k)])
+    
+    if recompute_labels:
+        if est_method == 'KM':
+            kmeans = faiss.Kmeans(dim, k, verbose = False)
+            kmeans.train(np.ascontiguousarray(Φ).astype('float32'))
+            _, ℓin = kmeans.assign(np.ascontiguousarray(Φ).astype('float32'))
 
-    return ReturnValue(Φ, Ψ, ℓin, ℓout, π, μ, σ2, time.time() - t0)
+        elif est_method == 'EM':
+            gm = GaussianMixture(n_components = k, covariance_type = 'diag').fit(Φ)
+            ℓin = gm.predict(Φ)
+    else:
+        ℓin = ℓ 
+
+    return ReturnValue(Φ, ℓin, π, μ, σ2, time.time() - t0, loss)
 
 ######################################################################################
 ######################################################################################
 ######################################################################################
 
 
-def UpdateLearningRate(η0, ηfin, epoch, n_epochs, scheduler_type):
+def UpdateLearningRate(η0, ηfin, epoch, n_epochs, n_epochs_before_rescheduling, scheduler_type):
     '''
     This function is used to update the learning rate at each iteration.
     
@@ -348,52 +287,61 @@ def UpdateLearningRate(η0, ηfin, epoch, n_epochs, scheduler_type):
         * ηfin (float): the learning rate at the last iteration
         * epoch (int): the current epoch
         * n_epochs (int): the total number of epochs
+        * n_epochs_before_rescheduling (int): number of epochs after which the learning rate is updated
         * scheduler_type (string): the type of desired update. The available types are:
             + 'constant': in this case the learning rate is simply set equal to η0
             + 'linear': in this case the difference between two successive updates is a constant
             + 'exponential': in this case the ratio between two successive updates is a constant
-            + 'mixed': it does n_epochs-3 steps with a linear decay up to η = 0.01 and then it continues with an exponential decay
+            + 'mixed': it does n-3 rescheduling steps with a linear decay up to η = 0.01 and then it continues with an exponential decay
             
     Output:
         * η (float): the updated learning rate
     '''
-    
-    if scheduler_type == 'exponential':
-        c = (ηfin/η0)**(1/(n_epochs-1))
-        η = η0*c**epoch
-        
-    elif scheduler_type == 'constant':
-        η = η0
-        
-    elif scheduler_type == 'linear':
-        c = (ηfin - η0)/(n_epochs - 1)
-        η = η0 + c*epoch
+    n_epochs_ = (n_epochs-1) // n_epochs_before_rescheduling
+    epoch_ = epoch // n_epochs_before_rescheduling
 
-    elif scheduler_type == 'mixed':
-        if epoch < n_epochs - 4:
-            c = (0.01 - η0)/(n_epochs - 3)
-            η = η0 + c*epoch
+    if n_epochs_ > 0 :
+        if scheduler_type == 'exponential':
+            c = (ηfin/η0)**(1/(n_epochs_))
+            η = η0*c**epoch_
+            
+        elif scheduler_type == 'constant':
+            η = η0
+            
+        elif scheduler_type == 'linear':
+            c = (ηfin - η0)/(n_epochs_ )
+            η = η0 + c*epoch_
 
+        elif scheduler_type == 'mixed':
+            if n_epochs_ <= 3:
+                raise Exception("Too few iterations for scheduler_type = 'mixed' for the specified n_epochs_before_rescheduling")
+            
+            elif epoch_ <= n_epochs_ - 3:
+                c = (0.01 - η0)/(n_epochs_ - 3)
+                η = η0 + c*epoch_
+
+            else:
+                c = (ηfin/0.01)**(1/(3-1))
+                η = 0.01*c**(epoch_ - n_epochs_ + 3)
+
+        
         else:
-            c = (ηfin/0.01)**(1/3)
-            η = 0.01*c**(epoch - n_epochs + 4)
-        
+            raise Exception('The scheduler_type variable is not valid')
     else:
-        raise DeprecationWarning('The scheduler_type variable is not valid')
+        η = η0
         
     return η
 
-
-def _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose):
+def _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose, optimizer, seed, normalizeΦ, rescaleΦ, clipping, compute_loss):
     '''
-    This function runs the optimization for the symmetric version of the algorithm
+    This function runs the optimization for the symmetric version of the algorithm.
     
-    Use: Φ = _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, scheduler_type, verbose)
+    Use: Φ = _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, scheduler_type, verbose, optimizer)
     
     Inputs:
         * Pv (list sparse array): the P matrix is provided by the product of all the elements appearing in Pv. Note the use of the `walk_length` parameter in the case in which P is the sum of powers of a given matrix.
         * Λ (sparse diagonal matrix): weight given to each element in the cost function. 
-        * ℓ (array): label assignment to create the mixture of Gaussians
+        * ℓ (array): label assignment to create the mixture of Gaussians.
         * walk_length (int): if P can be written as the sum of powers of a single matrix, `walk_lenght` is the largest of these powers.
         * dim (int): dimension of the embedding.
         * n_epochs (int): number of iterations in the optimization process.
@@ -401,109 +349,94 @@ def _OptimizeSym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_resche
         * η0 (float): initial learning rate.
         * ηfin (float): final learning rate.
         * γ (float): In the case in which P is the sum of powers of matrix M, `γ` is a weight between 0 and 1 multipling M.
-        * scheduler_type (string): the type of desired update. Refer to the function `UpdateLearningRate` for further details
+        * scheduler_type (string): the type of desired update. Refer to the function `UpdateLearningRate` for further details.
         * verbose (bool): determines whether the algorithm produces some output for the updates.
+        * optimizer (string): choose between default gradient descent or 'AdamW'. 
+        * seed (int): initialize random state for reproducibility.
+        * normalizeΦ (bool): normalize the embeddings matrix after each epoch of the optimization process.
+        * rescaleΦ (array): if normalizeΦ = True, rescale each row of Φ by a value proportional to rescaleΦ.
+        * clipping (bool): gradient clipping. Threshold is set as sqrt(dim).
+        * compute_loss (bool): output loss function (up to a constant) for each iteration.
     Output:
-        * Φ (array): solution to the optimization problem. Its size is n x dim
+        * Φ (array): solution to the optimization problem. Its size is n x dim.
+        * loss (array): if compute_loss = True, loss function (up to a constant) for each epoch.
         
     '''
-
+    # loss
+    loss = [] if compute_loss else None
     # sample size
     n = Pv[0].shape[0]
     
     # initialize the weights
+    if seed:
+        np.random.seed(seed)
     Φ = np.random.uniform(-1,1, (n, dim))
-
-    # normalize the embedding vectors
-    Φ = normalize(Φ, norm = 'l2', axis = 1)    
     
-    for epoch in range(n_epochs):
-        
-        # update the learning rate
-        η = UpdateLearningRate(η0, ηfin, epoch, n_epochs, scheduler_type)
-        
-        # print update
-        if verbose:
-            print("[%-25s] %d%%, η = %f" % ('='*(int((epoch+1)/n_epochs*25)-1) + '>', (epoch+1)/(n_epochs)*100, η), end = '\r')
+    # normalize the embedding vectors
+    Φ = normalize(Φ, norm = 'l2', axis = 1)
 
-        # compute the gradient and update the weights
-        for i in range(n_epochs_before_rescheduling):
-            GRAD = _computeGradSym(Pv, Λ, Φ, ℓ, γ, walk_length)
+    # run optimization    
+    if optimizer == "AdamW":
+        Φ, loss = AdamWOptimizerSym(Φ, Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose, normalizeΦ, rescaleΦ, clipping, compute_loss)
+    
+    else:
+        for epoch in range(n_epochs):
+            
+            # update learning rate
+            if epoch % n_epochs_before_rescheduling == 0:
+                η = UpdateLearningRate(η0, ηfin, epoch, n_epochs, n_epochs_before_rescheduling, scheduler_type)
+            
+            # print update
+            if verbose:
+                print("[%-25s] %d%%, η = %f" % ('='*(int((epoch+1)/n_epochs*25)-1) + '>', (epoch+1)/(n_epochs)*100, η), end = '\r')
+
+            # compute loss
+            if compute_loss:
+                loss.append(_computeLossSym(Pv, Λ, Φ, ℓ, γ, walk_length))
+            
+            # compute the gradient and update the weights
+            GRAD = _computeGradSym(Pv, Λ, Φ, ℓ, γ, walk_length, dim, clipping)
             Φ = Φ - η*GRAD
 
             # shift the mean to zero
             Φ = (Φ.T - np.reshape(np.mean(Φ, axis = 0), (dim, 1))).T 
 
             # normalize the embedding vectors
-            Φ = normalize(Φ, norm = 'l2', axis = 1)
-    
-    return Φ
+            if normalizeΦ:
+                Φ = normalize(Φ, norm = 'l2', axis = 1)
+            
+                if rescaleΦ is not None:
+                    rescaleΦ_ = rescaleΦ/np.mean(rescaleΦ)   
+                    Φ = diags(rescaleΦ_)@Φ
 
-def _OptimizeASym(Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose):
-    '''
-    This function runs the optimization for the non-symmetric version of the algorithm
-    
-    Use: Φ, Ψ = _OptimizeASym(Pv, Λ, ℓ, walk_length, dim, n_epochs, η0, ηfin, γ, scheduler_type, verbose)
-    
-    Inputs:
-        * Pv (list sparse array): the P matrix is provided by the product of all the elements appearing in Pv. Note the use of the `walk_length` parameter in the case in which P is the sum of powers of a given matrix.
-        * Λ (sparse diagonal matrix): weight given to each element in the cost function. 
-        * ℓ (array): label assignment to create the mixture of Gaussians
-        * walk_length (int): if P can be written as the sum of powers of a single matrix, `walk_lenght` is the largest of these powers.
-        * dim (int): dimension of the embedding. 
-        * n_epochs (int): number of iterations in the optimization process.
-        * n_epochs_before_rescheduling (int): number of epochs before updating the learning rate. 
-        * η0 (float): initial learning rate.
-        * ηfin (float): final learning rate.
-        * γ (float): In the case in which P is the sum of powers of matrix M, `γ` is a weight between 0 and 1 multipling M.
-        * scheduler_type (string): the type of desired update. Refer to the function `UpdateLearningRate` for further details
-        * verbose (bool): determines whether the algorithm produces some output for the updates.
-    Output:
-        * Φ (array): solution to the optimization problem for the input weights. Its size is n x dim
-        * Ψ (array): solution to the optimization problem for the output weights. Its size is n x dim
-        
-    '''
-    
-    #
+    loss = np.array(loss)
+    return Φ, loss
+
+def _computeLossSym(Pv, Λ, Φ, ℓ, γ, walk_length):
+
     n = Pv[0].shape[0]
+    k = len(np.unique(ℓ))
 
-    # initialize the weights
-    Φ = np.random.uniform(-1,1, (n, dim))
-    Ψ = np.random.uniform(-1,1, (n, dim))
+    # compute the parameters
+    π = np.array([np.sum(ℓ == a)/n for a in range(k)])
+    μ = np.stack([np.mean(Φ[ℓ == a], axis = 0) for a in range(k)])
+    σ2 = np.stack([np.var((Φ[ℓ == a])**2, axis = 0) for a in range(k)])
 
-    # normalize the embedding vectors
-    Φ = normalize(Φ, norm = 'l2', axis = 1)
-    Ψ = normalize(Ψ, norm = 'l2', axis = 1)
+    # "energy" part of the gradient
+    if walk_length > 1:
+        U, _ = _computeUsum(Pv, Λ, Φ, γ, walk_length)
+
+    else:
+        U, _ = _computeUprod(Pv, Λ, Φ)
+
+
+    Z = np.exp(Φ@μ.T + 0.5*Φ**2@σ2.T)@np.diag(π)
+
+    loss = -np.trace(Φ.T@U)  + np.log(np.sum(Z))
     
-    
-    for epoch in range(n_epochs):
-        
-        # set the learning rate
-        η = UpdateLearningRate(η0, ηfin, epoch, n_epochs, scheduler_type)
-        
-        # print update
-        if verbose:
-            print("[%-25s] %d%%, η = %f" % ('='*(int((epoch+1)/n_epochs*25)-1) + '>', (epoch+1)/(n_epochs)*100, η), end = '\r')
+    return loss
 
-
-        # compute the gradient and update the weights
-        for i in range(n_epohcs_before_rescheduling):
-            GRADΦ, GRADΨ = _computeGradASym(Pv, Λ, Φ, Ψ, ℓ, γ, walk_length)
-            Φ = Φ - η*GRADΦ
-            Ψ = Ψ - η*GRADΨ
-
-            # shift the mean to zero
-            Φ = (Φ.T - np.reshape(np.mean(Φ, axis = 0), (dim, 1))).T        
-            Ψ = (Ψ.T - np.reshape(np.mean(Ψ, axis = 0), (dim, 1))).T
-
-            # normalize the embedding vectors
-            Φ = normalize(Φ, norm = 'l2', axis = 1)
-            Ψ = normalize(Ψ, norm = 'l2', axis = 1)
-        
-    return Φ, Ψ
-
-
-def _computeGradSym(Pv, Λ, Φ, ℓ, γ, walk_length):
+def _computeGradSym(Pv, Λ, Φ, ℓ, γ, walk_length, dim, clipping):
     '''
     This function computes the gradient for the symmetric version of the algorithm
     
@@ -516,6 +449,8 @@ def _computeGradSym(Pv, Λ, Φ, ℓ, γ, walk_length):
         * ℓ (array): label assignment to create the mixture of Gaussians
         * γ (float): In the case in which P is the sum of powers of matrix M, `γ` is a weight between 0 and 1 multipling M.
         * walk_length (int): if P can be written as the sum of powers of a single matrix, `walk_lenght` is the largest of these powers.
+        * dim (int): dimension of the embedding.
+        * clipping (bool): gradient clipping. Threshold is set as sqrt(dim).
         
     Output:
         * GRAD (array): gradient of the cost function computed in Φ
@@ -542,73 +477,33 @@ def _computeGradSym(Pv, Λ, Φ, ℓ, γ, walk_length):
     ZN = diags(Λ.diagonal()/np.sum(Z, axis = 1))
 
     GRAD = -U - Ut + ZN.dot(Z.dot(μ) + Z.dot(σ2)*Φ)
+
+    if clipping:
+        GradNorm = np.sqrt(GRAD**2@np.ones(dim))
+        idx = GradNorm > np.sqrt(dim)
+        v = np.ones(n)
+        v[idx] = (np.sqrt(dim)**-1)*GradNorm[idx]
+        V = diags(v**(-1))
+        GRAD = V.dot(GRAD)
     
     return GRAD
 
-
-def _computeGradASym(Pv, Λ, Φ, Ψ, ℓ, γ, walk_length):
-    '''
-    This function computes the gradient for the symmetric version of the algorithm
-    
-    Use: GRAD = _computeGradASym(Pv, Λ, Φ, Ψ, ℓ, γ, walk_length)
-    
-    Inputs:
-        * Pv (list sparse array): the P matrix is provided by the product of all the elements appearing in Pv. Note the use of the `walk_length` parameter in the case in which P is the sum of powers of a given matrix.
-        * Λ (sparse diagonal matrix): weight given to each element in the cost function. 
-        * Φ (array): input weights with respect to which the gradient is computed
-        * Ψ (array): output weights with respect to which the gradient is computed
-        * ℓ (array): label assignment to create the mixture of Gaussians
-        * γ (float): In the case in which P is the sum of powers of matrix M, `γ` is a weight between 0 and 1 multipling M.
-        * walk_length (int): if P can be written as the sum of powers of a single matrix, `walk_lenght` is the largest of these powers.
-        
-    Output:
-        * GRADΦ (array): gradient of the cost function with respect to the input weights
-        * GRADΨ (array): gradient of the cost function with respect to the output weights
-   
-    '''
-
-    n = Pv[0].shape[0]
-    k = len(np.unique(ℓ))
-
-    # compute the parameters
-    π = np.array([np.sum(ℓ == a)/n for a in range(k)])
-    μ = np.stack([np.mean(Ψ[ℓ == a], axis = 0) for a in range(k)])
-    σ2 = np.stack([np.var((Ψ[ℓ == a])**2, axis = 0) for a in range(k)])
-
-    # "energy part of the gradient"
-    if walk_length > 1:
-        U, _ = _computeUsum(Pv, Λ, Φ, γ, walk_length)
-        _, Ut = _computeUsum(Pv, Λ, Ψ, γ, walk_length)
-
-    else:
-        U, _ = _computeUprod(Pv, Λ, Φ)
-        _, Ut = _computeUprod(Pv, Λ, Ψ)
-
-
-    Z = np.exp(Φ@μ.T + 0.5*Φ**2@σ2.T)@np.diag(π)
-    ZN = diags(Λ.diagonal()/np.sum(Z, axis = 1))
-
-    GRADΦ = -U + ZN.dot(Z.dot(μ) + Z.dot(σ2)*Φ)
-    GRADΨ = -Ut
-    
-    return GRADΦ, GRADΨ 
-
 def _computeUsum(Pv, Λ, Φ, γ, walk_length):
     '''
-    This function computes the "energetic" contribution of the gradient in the case in which P is written as a sum of powers
+    This function computes the "energetic" contribution of the gradient in the case in which P is written as a sum of powers.
     
     Use: U, Ut = _computeUsum(Pv, Λ, Φ, γ, walk_length)
     
     Inputs:
         * Pv (list sparse array): The matrix P is given by a sum of the powers of the only elements contained in Pv.
         * Λ (sparse diagonal matrix): weight given to each element in the cost function. 
-        * Φ (array): weights with respect to which the gradient is computed
+        * Φ (array): weights with respect to which the gradient is computed.
         * γ (float): a weight between 0 and 1 multipling the only element contained in Pv.
         * walk_length (int): the largest matrix power considered to build P.
         
     Output:
-        * U (array): first contribution to the gradient
-        * Ut (array): second contribution to the gradient (coming from the transpose)
+        * U (array): first contribution to the gradient.
+        * Ut (array): second contribution to the gradient (coming from the transpose).
         
     '''
     
@@ -631,18 +526,18 @@ def _computeUsum(Pv, Λ, Φ, γ, walk_length):
 
 def _computeUprod(Pv, Λ, Φ):
     '''
-    This function computes the "energetic" contribution of the gradient in the case in which P is written as a product of matrices
+    This function computes the "energetic" contribution of the gradient in the case in which P is written as a product of matrices.
     
     Use: U, Ut = _computeUprod(Pv, Λ, Φ)
     
     Inputs:
         * Pv (list sparse array): The matrix P is given by a sum of the powers of the only elements contained in Pv.
         * Λ (sparse diagonal matrix): weight given to each element in the cost function. 
-        * Φ (array): weights with respect to which the gradient is computed
+        * Φ (array): weights with respect to which the gradient is computed.
         
     Output:
-        * U (array): first contribution to the gradient
-        * Ut (array): second contribution to the gradient (coming from the transpose)
+        * U (array): first contribution to the gradient.
+        * Ut (array): second contribution to the gradient (coming from the transpose).
         
     '''
 
@@ -662,3 +557,84 @@ def _computeUprod(Pv, Λ, Φ):
     U = Λ@U
         
     return U, Ut.T
+
+def AdamWOptimizerSym(Φ, Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose, normalizeΦ, rescaleΦ, clipping, compute_loss):
+    '''
+    This function performs AdamW optimization for the symmetric version of the algorithm.
+    
+    Use: Φ = AdamWOptimizer(Φ, Pv, Λ, ℓ, walk_length, dim, n_epochs, n_epochs_before_rescheduling, η0, ηfin, γ, scheduler_type, verbose, normalizeΦ, rescaleΦ, clipping, compute_loss)
+    
+    Inputs:
+        * Φ (array): initial weights to be optimized
+        * Pv (list sparse array): The matrix P is given by a sum of the powers of the only elements contained in Pv.
+        * Λ (sparse diagonal matrix): weight given to each element in the cost function. 
+        * ℓ (array): label assignment to create the mixture of Gaussians
+        * walk_length (int): if P can be written as the sum of powers of a single matrix, `walk_lenght` is the largest of these powers.
+        * dim (int): dimension of the embedding. 
+        * n_epochs (int): number of iterations in the optimization process.
+        * n_epochs_before_rescheduling (int):
+        * η0 (float): initial learning rate.
+        * ηfin (float): final learning rate.
+        * γ (float): In the case in which P is the sum of powers of matrix M, `γ` is a weight between 0 and 1 multipling M.
+        * scheduler_type (string): the type of desired update. Refer to the function `UpdateLearningRate` for further details.
+        * verbose (bool): determines whether the algorithm produces some output for the updates.
+        * normalizeΦ (bool): normalize the embeddings matrix after each epoch of the optimization process.
+        * rescaleΦ (array): if normalizeΦ = True, rescale each row of Φ by a value proportional to rescaleΦ.
+        * clipping (bool): gradient clipping. Threshold is set as sqrt(dim).
+        * compute_loss (bool): output loss function (up to a constant) for each iteration.
+
+
+    Output:
+        * Φ (array): solution to the optimization problem for the input weights. Its size is n x dim
+        * loss (array): if compute_loss = True, loss function (up to a constant) for each epoch.
+        
+    '''
+    
+    #hyperparameters
+    alpha = 1.
+    beta_1 = 0.9
+    beta_2 = 0.999
+    eps = 10**-8
+    w = 0.1
+
+    #initialize empty loss 
+    loss = [] if compute_loss else None
+
+    #initialize empty arrays and time
+    m = np.zeros(shape = (n, dim))
+    v = np.zeros(shape = (n, dim))
+    t = 0
+    for epoch in range(n_epochs):
+        if epoch % n_epochs_before_rescheduling == 0:
+            η = UpdateLearningRate(η0, ηfin, epoch, n_epochs, n_epochs_before_rescheduling, scheduler_type)
+
+        # print update
+        if verbose:
+            print("[%-25s] %d%%, η = %f" % ('='*(int((epoch+1)/n_epochs*25)-1) + '>', (epoch+1)/(n_epochs)*100, η), end = '\r')
+
+        # compute loss
+        if compute_loss:
+            loss.append(_computeLossSym(Pv, Λ, Φ, ℓ, γ, walk_length))
+        
+        # compute the gradient and update the weights
+        t +=1 
+        GRAD = _computeGradSym(Pv, Λ, Φ, ℓ, γ, walk_length, dim, clipping)   
+        m = beta_1*m + (1-beta_1)*GRAD
+        v = beta_2*v + (1-beta_2)*GRAD**2
+        m_hat = m/(1-beta_1**t)
+        v_hat = v/(1-beta_2**t)
+        Φ -= η*(alpha*m_hat/(np.sqrt(v_hat) + eps) +w*Φ)
+
+        # shift the mean to zero
+        Φ = (Φ.T - np.reshape(np.mean(Φ, axis = 0), (dim, 1))).T 
+
+        # normalize the embedding vectors
+        if normalizeΦ:
+            Φ = normalize(Φ, norm = 'l2', axis = 1)
+
+            if rescaleΦ is not None:
+                rescaleΦ_ = rescaleΦ/np.mean(rescaleΦ)   
+                Φ = diags(rescaleΦ_)@Φ
+    
+    loss = np.array(loss)
+    return Φ, loss
