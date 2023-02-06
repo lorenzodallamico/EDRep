@@ -1,14 +1,22 @@
+# This is the implementation of the spectral clustering algorithm developed in 
+# * Dall'Amico, Couillet, Tremblay: Revisiting the Bethe-Hessian: Improved Community Detection in Sparse Heterogeneous Graphs
+# * Dall'Amico, Couillet, Tremblay: A unified framework for spectral clustering in sparse graphs
+#
+#
+# All rights are reserved. If you use this code, please cite the referenced articles.
+
 import numpy as np
 import itertools
-import networkx as nx
 from scipy.sparse import csr_matrix, bmat
-from sklearn.metrics.cluster import normalized_mutual_info_score
 import faiss
 import scipy.sparse.linalg
 import sys
+from sklearn.preprocessing import normalize
+from sklearn.metrics.cluster import normalized_mutual_info_score as nmi
 
 
-def adj(C_matrix,c, label, theta):
+
+def adj(C_matrix,c, label, theta, giant):
     ''' Function that generates the adjacency matrix A with n nodes and k communities
     
     Use: A = adj(C_matrix,c, label, theta)
@@ -18,9 +26,11 @@ def adj(C_matrix,c, label, theta):
         * c (scalar) : average connectivity of the network
         * label (array of size n) : vector containing the label of each node
         * theta  (array of size n) : vector with the intrinsic probability connection of each node
+        * giant (bool): if True it return the nodes with degree > 0
     
     Output:
         * A (sparse matrix of size n x n) : symmetric adjacency matrix
+        * label (array): label vector of the remaing nodes
     '''
 
     # number of communities
@@ -47,12 +57,21 @@ def adj(C_matrix,c, label, theta):
 
     edge_list = np.column_stack((fs,ss)) # create the edge list from the connection defined earlier
 
-    edge_list = np.unique(edge_list, axis = 0) # remove edges appearing more then once
+    edge_list = np.unique(edge_list, axis = 0) # remove edges appearing more than once
     edge_list = edge_list[edge_list[:,0] > edge_list[:,1]] # keep only the edges such that A_{ij} = 1 and i > j
 
     A = csr_matrix((np.ones(len(edge_list[:,0])), (edge_list[:,0], edge_list[:,1])), shape=(n, n))
+    A = A + A.transpose() # symmetrize the matrix
 
-    return A + A.transpose()
+    if giant:
+        # limit the analysis to the giant component
+        d = A@np.ones(n)
+        idx = d > 0
+        A = A[idx][:,idx]
+        label = label[idx]
+
+    return A, label
+
 
 
 def matrix_C(c_out, c,fluctuation, fraction):
@@ -79,29 +98,40 @@ def matrix_C(c_out, c,fluctuation, fraction):
         x = nn[nn != i]
         C_matrix[i][i] = (c - (C_matrix[:,x]@fraction[x])[i])/fraction[i] # imposing CPi1 = c1
 
-    return C_matrix  
+    return C_matrix 
 
 
-def computeNMI(Φ, ℓ):
-    '''This function computes the NMI as inferred from KMeans applied on the embedding Φ
+
+def computeScore(X, ℓ):
+    '''This function computes the NMI as inferred from EM applied on the embedding Φ
     
-    Use: NMI = computeNMI(Φ, ℓ)
+    Use: NMI = computeNMI(X, ℓ)
     
     Inputs: 
-        * Φ (array): embedding from which the labels should be estimated
+        * X (array): embedding from which the labels should be estimated
         * ℓ (array): true labels
         
     Outpus:
         * NMI (float): normalized mutual information score
     '''
 
-    n_clusters = len(np.unique(ℓ))
-    kmeans = faiss.Kmeans(np.shape(Φ)[1], n_clusters, verbose = False)
-    kmeans.train(np.ascontiguousarray(Φ).astype('float32'))
-    _, ℓest = kmeans.assign(np.ascontiguousarray(Φ).astype('float32'))
-    
-    return normalized_mutual_info_score(ℓest, ℓ)
+    k = len(np.unique(ℓ))
 
+    X = normalize(X, norm = 'l2', axis = 1)
+
+    n, dim = np.shape(X)
+
+    # perform kmeans 10 times and keep the best score
+    nmiv = []
+
+    for i in range(10):
+        kmeans = faiss.Kmeans(dim, k, verbose = False)
+        kmeans.train(np.ascontiguousarray(X).astype('float32'))
+        _, ℓest = kmeans.assign(np.ascontiguousarray(X).astype('float32'))
+        nmiv.append(nmi(ℓ, ℓest))
+
+    
+    return np.max(nmiv)
 
 ##################################################################
 
