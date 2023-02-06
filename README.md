@@ -25,12 +25,17 @@ This `README` has to be completed and improved
 - [x] Download embeddings (obtained by different algorithms would be great) and test our algorithm against possible competitors.
     > There are essentially no competitors. Maybe we can download some more to make the tests a bit more extensive and to use the graph embeddings of the real graphs as well.
 - [ ] Agree on all plots and run systematic simulations.
-- [ ] Find a couple more text datasets to test our method. Inspect the quality of the embedding.
-- [ ] Check the code and simplify it where possible. Take care to see if it is possible to obtain some improvements in terms of complexity.
+   > This will only be done after the paper is written
+- [x] Check the code and simplify it where possible. Take care to see if it is possible to obtain some improvements in terms of complexity.
+   > This was done. We may still make it a bit nicer, but in principle it should be ok
 - [ ] Write a decent documentation.
 - [ ] Write a paper.
-- [ ] Sparsify the matrix P for Word2Vec
-- [ ] Understand better how to use the scheduler of the learning rate.
-- [ ] Parallelize gradient descent
-- [ ] Consider different types of normalization (l2, l4, lp, linfty)
-- [ ] Consider if going back to AdamW
+- [x] Sparsify the matrix P for Word2Vec
+- [x] Understand better how to use the scheduler of the learning rate.
+- [x] Parallelize gradient descent
+   > Not doable
+- [x] Consider different types of normalization (l2, l4, lp, linfty)
+   > Dropped
+- [x] Consider if going back to AdamW
+   > Dropped
+
