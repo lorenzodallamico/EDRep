@@ -19,18 +19,16 @@ import numpy as np
 import faiss
 from scipy.sparse import diags
 from sklearn.preprocessing import normalize
-
-
-
+from copy import copy
 
 ###########################################
 ####### Main optimization function ########
 ###########################################
 
 
-def CreateEmbedding(Pv, dim = 32, f = None, n_epochs = 20, n_prod = 1, sum_partials = False, k = 8, η = .7, verbose = True, cov_type = 'diag'):
+def CreateEmbedding(Pv, dim = 128, f = None, p0 = None, n_epochs = 20, n_prod = 1, sum_partials = False, k = 1, η = .85, verbose = True, cov_type = 'full'):
     '''
-    This function creates a distributed representation of a probability distribution as presented in Algorithm () of ()
+    This function creates a distributed representation of a probability distribution as presented in (Dall'Amico, Belliardo: Efficient distributed representation of complex entities beyond negative sampling)
 
     Use: X = CreateEmbedding(Pv)
 
@@ -40,11 +38,12 @@ def CreateEmbedding(Pv, dim = 32, f = None, n_epochs = 20, n_prod = 1, sum_parti
     Optional inputs:
         * f (function): this vector specifies the Euclidean norm of each embedding vector. If it is set to `None` (default), then it is considered to be the all ones vector of size n.
         * dim (int): dimension of the embedding. By default set to 128
+        * p0 (array): array of size n that specifies the "null model" probability
         * n_epochs (int): number of iterations in the optimization process. By default set to 20
         * n_prod (int): refer to the description of `Pv` for the use of this parameter. Note that if `len(Pv) > 1`, `n_prod` must be set equal to 1 (default value).
         * sum_partials (bool): refer to the description of `Pv` for the use of this parameter. The default value is `False`
         * k (int): order of the GMM approximation. By default set to 8
-        * η (float): learning rate. By default set to 0.7.
+        * η (float): largest adimissible learning rate. By default set to 0.7.
         * verbose (bool): determines whether the algorithm produces some output for the updates. By default set to True
         * cov_type (string): if 'diag' (default) it computes a diagonal covariance matrix. If 'full' it computes the full covariance matrix. Otherwise it raise a warning.
         
@@ -54,7 +53,7 @@ def CreateEmbedding(Pv, dim = 32, f = None, n_epochs = 20, n_prod = 1, sum_parti
     '''
 
     ### make initial checks and raise warning if needed ###
-    F, n = _RunChecks(Pv, n_prod, cov_type, sum_partials, f)
+    F, n, p0 = _RunChecks(Pv, n_prod, cov_type, sum_partials, f, p0)
 
     ################## run the algorithm ##################
 
@@ -66,7 +65,7 @@ def CreateEmbedding(Pv, dim = 32, f = None, n_epochs = 20, n_prod = 1, sum_parti
     if verbose:
         print('Running the optimization for k = 1')
 
-    X = _Optimize(Pv, F, ℓ, n_prod, sum_partials, dim, n_epochs, η, verbose, cov_type)
+    X = _Optimize(Pv, F, ℓ, p0, n_prod, sum_partials, dim, n_epochs, η, verbose, cov_type)
 
     # re-run the optimization for k > 1
     if k > 1:
@@ -79,12 +78,12 @@ def CreateEmbedding(Pv, dim = 32, f = None, n_epochs = 20, n_prod = 1, sum_parti
         if verbose:
             print("Running the optimization for k = " + str(k))
 
-        X = _Optimize(Pv, F, ℓ, n_prod, sum_partials, dim, n_epochs, η, verbose, cov_type)
+        X = _Optimize(Pv, F, ℓ, p0, n_prod, sum_partials, dim, n_epochs, η, verbose, cov_type)
 
     return X
 
 
-def computeZest(X, indeces, k = 5, return_params = False, cov_type = 'diag'):
+def computeZest(X, indeces, k = 5, return_params = False, cov_type = 'full'):
     '''This function is our implementation of Algorithm 1 and allows to efficiently estimate a set of Z_i values
 
     Use: Z_vec = computeZest(X, indeces, k = 5, return_params = False)
@@ -106,7 +105,7 @@ def computeZest(X, indeces, k = 5, return_params = False, cov_type = 'diag'):
 
     if k > 1:
         # estimate the mixture parameters using kmeans
-        kmeans = faiss.Kmeans(dim, k, verbose = False)
+        kmeans = faiss.Kmeans(dim, k, verbose = False, spherical = True)
         kmeans.train(np.ascontiguousarray(X).astype('float32'))
         _, ℓ = kmeans.assign(np.ascontiguousarray(X).astype('float32'))
 
@@ -115,17 +114,17 @@ def computeZest(X, indeces, k = 5, return_params = False, cov_type = 'diag'):
 
 
     # compute the parameters for each class
-    μ = [np.mean(X[ℓ == a], axis = 0) for a in range(k)]
+    μ = np.array([np.mean(X[ℓ == a], axis = 0) for a in range(k)])
     π = np.array([np.sum(ℓ == a) for a in range(k)])
-
-
+    
     if cov_type == 'diag':
         σ2 = np.stack([np.var((X[ℓ == a])**2, axis = 0) for a in range(k)])
-        Zv = np.exp(X[indeces]@μ.T + 0.5*X[indeces]**2@σ2.T)@np.diag(π)
+        Zv = np.exp(X[indeces]@μ.T + 0.5*X[indeces]**2@σ2.T)@π
+        Ω = [diags(σ2[a]) for a in range(k)]
 
     elif cov_type == 'full':
         Ω = [np.cov(X[ℓ == a].T) for a in range(k)]
-        Zv = np.exp(X[indeces]@np.array(μ).T + 0.5*np.array([(X[indeces] * X[indeces]@Ω[a]).sum(-1) for a in range(k)]).T)@np.diag(π)
+        Zv = np.exp(np.array([X[indeces]@μ[a] + 0.5*(X[indeces] * X[indeces]@Ω[a])@np.ones(dim) for a in range(k)]).T)@π
 
     else:
         raise DeprecationWarning('Invalid cov_type')
@@ -175,7 +174,7 @@ def _Clustering(X, k):
 
     n, dim = np.shape(X)
 
-    kmeans = faiss.Kmeans(dim, k, verbose = False)
+    kmeans = faiss.Kmeans(dim, k, verbose = False, spherical = True)
     kmeans.train(np.ascontiguousarray(X).astype('float32'))
     _, ℓ = kmeans.assign(np.ascontiguousarray(X).astype('float32'))
 
@@ -183,21 +182,22 @@ def _Clustering(X, k):
 
 
 
-def _Optimize(Pv, F, ℓ, n_prod, sum_partials, dim, n_epochs, η, verbose, cov_type):
+def _Optimize(Pv, F, ℓ, p0, n_prod, sum_partials, dim, n_epochs, η, verbose, cov_type):
     '''
     This function runs the optimization part of Algorithm 2
 
-    Use: X = _Optimize(Pv, F, ℓ, n_prod, sum_partials, dim, n_epochs, η, ηfin, verbose)
+    Use: X = _Optimize(Pv, F, ℓ, p0, n_prod, sum_partials, dim, n_epochs, η, verbose, cov_type)
 
     Inputs:
         * Pv (list sparse array): the P matrix is provided by the product of all the elements appearing in Pv. Note the use of the `n_prod` and `sum_partials` parameters.
         * F (sparse diagonal matrix): the diagonal elements of this matrix are equal to the norms of the embedding vectors.
         * ℓ (array): label assignment
+        * p0 (array): array of size n that specifies the "null model" probability
         * n_prod (int): if P can be written as the power or sum of powers of a single matrix, `n_prod` is the largest of these powers.
         * sum_partials (bool): if True, P is written as the sum of powers
         * dim (int): dimension of the embedding.
         * n_epochs (int): number of iterations in the optimization process.
-        * η (float): learning rate.
+        * η (float): largest learning rate.
         * verbose (bool): determines whether the algorithm produces some output for the updates.
         * cov_type (string): if 'diag' (default) it returns a diagonal covariance matrix. If 'full' it computes the full covariance matrix. Otherwise a Deprecation Warning is raised
         
@@ -214,36 +214,47 @@ def _Optimize(Pv, F, ℓ, n_prod, sum_partials, dim, n_epochs, η, verbose, cov_
 
     # normalize the embedding vectors
     X = F@normalize(X, norm = 'l2', axis = 1)
+    f = F.diagonal()
     
     for epoch in range(n_epochs):
 
         # print update
         if verbose:
-            print("[%-25s] %d%%" % ('='*(int((epoch+1)/n_epochs*25)-1) + '>', (epoch+1)/(n_epochs)*100), end = '\r')
+            print("[%-25s] %d%%" % ('='*(int((epoch+1)  /n_epochs*25)-1) + '>', (epoch+1)/(n_epochs)*100), end = '\r')
 
 
         # compute the gradient
-        GRAD = _computeGrad(Pv, X, ℓ, n_prod, sum_partials, cov_type)
+        GRAD = _computeGrad(Pv, X, ℓ, p0, n_prod, sum_partials, cov_type)
+
+        # use the largest possible learing rate
+        a = (X * GRAD).sum(-1)
+        proj = f**2/(f**2+a)
+        if np.sum(proj > 0) > 0:
+            proj = proj[proj > 0]
+            ηc = np.min([np.min(proj), 1])*η
+        else:
+            ηc = η
 
         # update the weights
-        X = (1 - η)*X - η*GRAD
-
+        X = (1 - ηc)*X - ηc*GRAD
+        
         # normalize the embedding vectors
         X = F@normalize(X, norm = 'l2', axis = 1)
 
     return X
 
 
-def _computeGrad(Pv, X, ℓ, n_prod, sum_partials, cov_type):
+def _computeGrad(Pv, X, ℓ, p0, n_prod, sum_partials, cov_type):
     '''
     This function computes the gradient of the loss function
 
-    Use: GRAD = _computeGrad(Pv, X, ℓ, n_prod, sum_partials)
+    Use: GRAD = _computeGrad(Pv, X, ℓ, p0, n_prod, sum_partials, cov_type)
 
     Inputs:
         * Pv (list sparse array): the P matrix is provided by the product of all the elements appearing in Pv. Note the use of the `walk_length` parameter in the case in which P is the sum of powers of a given matrix.
         * X (array): input weights with respect to which the gradient is computed
         * ℓ (array): label assignment to create the mixture of Gaussians
+        * p0 (array): array of size n that specifies the "null model" probability
         * n_prod (int): if P can be written as the power or sum of powers of a single matrix, `n_prod` is the largest of these powers.
         * sum_partials (bool): if True, P is written as the sum of powers
         * cov_type (string): if 'diag' (default) it returns a diagonal covariance matrix. If 'full' it computes the full covariance matrix. Otherwise a Deprecation Warning is raised
@@ -280,9 +291,12 @@ def _computeGrad(Pv, X, ℓ, n_prod, sum_partials, cov_type):
     else:
         U, Ut = _computeUprod(Pv, X, n_prod)
 
-    return -(U + Ut) + Zgrad + 2*np.reshape(np.mean(X, axis = 0), (dim, 1)).T
+    P0 = np.reshape(p0, (n,1))
+    u = np.reshape(np.ones(n), (n,1))
+    E = u.T@P0
 
-        
+    return -(U + Ut) + Zgrad + (u@(P0.T@X) + P0@(u.T@X))/E
+
 
 def _computeUsum(Pv, X, n_prod):
     '''
@@ -362,7 +376,7 @@ def _computeUprod(Pv, X, n_prod):
     return U, Ut.T
 
 
-def _RunChecks(Pv, n_prod, cov_type, sum_partials, f):
+def _RunChecks(Pv, n_prod, cov_type, sum_partials, f, p0):
     '''Makes some initial checks on the input variables'''
 
     # check the consistent use of the n_prod parameter
@@ -403,5 +417,14 @@ def _RunChecks(Pv, n_prod, cov_type, sum_partials, f):
     else:
         F = diags(f/np.mean(f))
 
+    # get and check the p0 vector
+    try:
+        len(p0)
+    except:
+        p0 = np.ones(n)
 
-    return F, n
+    if len(p0) != n:
+        raise DeprecationWarning("The provided array f has inconsistent shape with respect to P")
+    
+
+    return F, n, p0

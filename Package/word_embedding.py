@@ -3,10 +3,13 @@ import numpy as np
 from scipy.sparse import csr_matrix, diags
 from joblib import Parallel, delayed
 import itertools
+from time import time
 
 
 from eder import *
 
+
+_flat = lambda x:x**0
 
 def PreProcessText(text, min_count):
     '''This function makes an initial cleaning of the text, dropping occurrencies of most frequent and very unfrequent words.
@@ -46,16 +49,18 @@ def PreProcessText(text, min_count):
 
     # convert to integers
     text = [word2idx[t] for t in text]
+    all_words = [word2idx[w] for w in all_words]
+    counter = Counter(text)
+    frequency = np.array([counter[word] for word in all_words])
     
-
-    return text, word2idx
-
+    return text, word2idx, frequency
 
 
-def CoOccurencyMatrix(text, distance, n):
-    '''This function builds the co-occurency matrix between words at a given distance
 
-    Use : A = CoOccurencyMatrix(text, distance, n)
+def CoOccurrenceMatrix(text, distance, n):
+    '''This function builds the co-occurency matrix between words within distance
+
+    Use : A = CoOccurrenceMatrix(text, distance, n)
 
     Input:
         * text (list): input text
@@ -69,19 +74,23 @@ def CoOccurencyMatrix(text, distance, n):
     
     if distance == 0:
         raise DeprecationWarning('The distance must be larger than zero')
+    
+    A_list = []
 
-    v = [tuple([a, b]) for a, b in zip(text[distance:], text[:-distance])]
-    counter = Counter(v)
-    idx1 = [a[0] for a in counter.keys()]
-    idx2 = [a[1] for a in counter.keys()]
-    A = csr_matrix((list(counter.values()), (idx1, idx2)), shape = (n,n))
+    for i in range(1, distance+1):
+        v = [tuple([a, b]) for a, b in zip(text[distance:], text[:-distance])]
+        counter = Counter(v)
+        idx1 = [a[0] for a in counter.keys()]
+        idx2 = [a[1] for a in counter.keys()]
+        A_list.append(csr_matrix((list(counter.values()), (idx1, idx2)), shape = (n,n)))
 
-    A + A.T
+    A = np.sum(A_list)
+    A = A + A.T
 
-    return A + A.T
+    return A
 
-def WordEmbedding(text, dim = 128, f_func = _flat, n_epochs = 8, window_size = 5, min_count = 5, th = 1, verbose = True, 
-                k = 1, cov_type = 'diag', η = 0.5, n_jobs = 8):
+def WordEmbedding(text, dim = 128, f_func = _flat, sparsify = 100, n_epochs = 8, window_size = 1, min_count = 5, verbose = True, 
+                k = 1, cov_type = 'full', γ = 0.75, η = 0.85, n_jobs = 8):
     '''This function creates a word embedding given a text
     
     Use: X, word2idx = WordEmbedding(text, dim = 128, n_epochs = 8, window_size = 5, min_count = 5, th = 1, verbose = True, 
@@ -102,6 +111,7 @@ def WordEmbedding(text, dim = 128, f_func = _flat, n_epochs = 8, window_size = 5
         * k (int): order of the mixture of Gaussians approximation
         * cov_type (string): determines the covariance type used in the mixture of Gaussians approximation. By default seto to 'diag'
         * η (float): learning parameter. By default set to 0.5
+        * γ (float): negative sampling parameter
         * n_jobs (int): number of parallel jobs used to build the co-occurency matrix
 
     Outputs:
@@ -109,61 +119,81 @@ def WordEmbedding(text, dim = 128, f_func = _flat, n_epochs = 8, window_size = 5
         * word2idx (dictionary): mapping between words and embedding indices
     '''
 
+    t0 = time()
     if verbose:
         print('Text pre-processing')
         
        
     text = list(itertools.chain(*text))
-    text, word2idx = PreProcessText(text, min_count)
+    text, word2idx, frequency = PreProcessText(text, min_count)
     n = max(text)+1
+
 
     if verbose:
         print('Get the probability matrix')
     
 
-    # compute the co-occurency matrices
+    # split the text
+    l = int(len(text)/n_jobs)
+    tt = [text[i*l:(i+1)*l] for i in range(n_jobs)]
+
     if n_jobs > 1:
         if verbose:
             Pl = Parallel(n_jobs = n_jobs, verbose = 8)
         else:
             Pl = Parallel(n_jobs = n_jobs, verbose = 0)
 
-        result = Pl(delayed(CoOccurencyMatrix)(text, l, n) for l in range(1, window_size))
+        result = Pl(delayed(CoOccurrenceMatrix)(t, window_size, n) for t in tt)
 
     else:
-        result = [CoOccurencyMatrix(text, l, n) for l in range(1, window_size)]
+        result = [CoOccurrenceMatrix(text, window_size, n)]
 
-
-    A = np.sum([np.sum(result[:j]) for j in range(len(result))])
-    A = A - diags(A.diagonal())
     
-    # remove un-frequent entries
-    NZ = A.nonzero()
-    vals = np.array(A[NZ])[0]
-    idx = vals > th
-    NZ = [nz[idx] for nz in NZ]
-    A = csr_matrix((vals[idx], (NZ[0], NZ[1])), shape = A.shape)
+    f = f_func(frequency)
 
-    # compute the probability matrix
-    n = A.shape[0]
-    d = np.maximum(A@np.ones(n), 1)
-    D_1 = diags(d**(-1))
-    P = D_1.dot(A)
-
-
-    f = f_func(d)
+    # apply a threshold for the decay
     th = np.sort(f)[int(0.95*n)]
-    f[f > th] = th
+    f[f > th] = th*np.sqrt(np.log(f[f > th])/np.log(th))
+
+    # normalize
+    f = f/np.mean(f)
+
+    A = np.sum(result)
     
+    # get the sparified matrix P
+    if sparsify < n:
+        if verbose:
+            print('Sparsifying the matrix')
+    
+        idx2 = top_n_idx_sparse(A, sparsify)
+        idx1 = np.concatenate([np.ones(len(a))*i for i, a in enumerate(idx2)])
+        idx2 = np.concatenate(idx2)
+        
+        v = np.array(A[(idx1, idx2)])[0]
+        A = csr_matrix((v, (idx1, idx2)), shape = (n,n))
+        P = diags((A@np.ones(n))**(-1)).dot(A)
+            
+    tf = time() - t0
     
     # Eder
     if verbose:
+        print('Time elapsed before optimization: ' + str(tf))
         print('Computing the embedding')
-    X = CreateEmbedding([P], f = f, dim = dim, n_epochs = n_epochs, n_prod = 1., sum_partials = False,
+    X = CreateEmbedding([P], f = f, dim = dim, p0 = frequency**γ, n_epochs = n_epochs, n_prod = 1., sum_partials = False,
                       k = k, verbose = verbose, cov_type = cov_type, η = η)
 
     return X, word2idx
 
 
-def _flat(x):
-    return x
+def top_n_idx_sparse(matrix, th):
+    """Return index of top fraction th of top values in each row of a sparse matrix."""
+    top_n_idx = []
+    for le, ri in zip(matrix.indptr[:-1], matrix.indptr[1:]):
+        # n_row_pick = int(th*(ri - le)+1)
+        n_row_pick = min(ri - le, th)
+        top_n_idx.append(
+            matrix.indices[
+                le + np.argpartition(matrix.data[le:ri], -n_row_pick)[-n_row_pick:]
+            ]
+        )
+    return top_n_idx

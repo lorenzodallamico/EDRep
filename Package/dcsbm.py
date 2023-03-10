@@ -102,7 +102,7 @@ def matrix_C(c_out, c,fluctuation, fraction):
 
 
 
-def computeScore(X, ℓ):
+def computeScore(X, ℓ, n_trials = 5, norm_bool = True):
     '''This function computes the NMI as inferred from EM applied on the embedding Φ
     
     Use: NMI = computeNMI(X, ℓ)
@@ -117,14 +117,15 @@ def computeScore(X, ℓ):
 
     k = len(np.unique(ℓ))
 
-    X = normalize(X, norm = 'l2', axis = 1)
+    if norm_bool:
+        X = normalize(X, norm = 'l2', axis = 1)
 
     n, dim = np.shape(X)
 
     # perform kmeans 10 times and keep the best score
     nmiv = []
 
-    for i in range(10):
+    for i in range(n_trials):
         kmeans = faiss.Kmeans(dim, k, verbose = False)
         kmeans.train(np.ascontiguousarray(X).astype('float32'))
         _, ℓest = kmeans.assign(np.ascontiguousarray(X).astype('float32'))

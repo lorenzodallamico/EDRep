@@ -7,10 +7,10 @@ from eder import *
 _flat = lambda x:x**0
 
 
-def NodeEmbedding(A, dim, f_func = _flat, n_epochs = 35, n_prod = 1, k = 1, cov_type = 'diag', verbose = True, η = 0.85):
+def NodeEmbedding(A, dim, f_func = _flat, n_epochs = 30, n_prod = 1, k = 1, cov_type = 'full', verbose = True, η = 0.85):
     '''Algorithm for node embedding using Eder
     
-    * Use: X = NodeEmbedding(A, dim, f, n_epochs = 35, n_prod = 1, k = 1, cov_type = 'diag', verbose = True, η0 = 0.85)
+    * Use: X = NodeEmbedding(A, dim, f, n_epochs = 35, n_prod = 1, k = 1, cov_type = 'diag', verbose = True, η0 = 0.8)
     
     * Inputs:
         * A (scipy sparse matrix): graph adjacency matrix. It can be weighted and non-symmetric, but its entries must be non-negative
@@ -39,13 +39,15 @@ def NodeEmbedding(A, dim, f_func = _flat, n_epochs = 35, n_prod = 1, k = 1, cov_
     D_1 = diags(d**(-1))
     P = D_1.dot(A)
 
-
-    cumsum = np.array([np.sum(d <= i)/len(d) for i in np.arange(np.max(d))])
-
     # bound the distribution to its 95 percentile
     f = f_func(d)
+
+    # apply a threshold for the decay
     th = np.sort(f)[int(0.95*n)]
-    f[f > th] = th
+    f[f > th] = th*np.sqrt(np.log(f[f > th])/np.log(th))   
+
+    # normalize
+    f = f/np.mean(f)    
     
     # Eder
     X = CreateEmbedding([P], f = f, dim = dim, n_epochs = n_epochs, n_prod = n_prod, sum_partials = True,
