@@ -10,7 +10,6 @@ This `README` has to be completed and improved
 * `Real graphs tests`: performs community detection on **real** graphs and tests the results against `Node2Vec` algorithm. 
 * `Text processing`: performs word embeddings and compares the results with the gensim implementation of `word2vec`.
 * `dataset`: these are the datasets used to perform community detection on real data.
-* `embeddings`: in this folder I put the embeddings to test the algorithm, but they will not be uploaded to github.
 * `Package`: this folder contains all the relevant source code:
 
     * `dcsbm`: these functions are used to generate synthetic graphs with a community structure and to run my algorithm for community detection (the one we compare to)
