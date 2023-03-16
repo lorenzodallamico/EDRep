@@ -23,6 +23,10 @@ add ref
     * `word_embedding`: this contains the main functions to create a word embedding
 
 
+## Requirements
+
+Add requirements
+
 ## Authors
 
 * [Lorenzo Dall'Amico](https://lorenzodallamico.github.io/)
