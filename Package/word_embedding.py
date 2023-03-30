@@ -6,7 +6,7 @@ import itertools
 from time import time
 
 
-from eder import *
+from edr import *
 
 
 _flat = lambda x:x**0
@@ -93,8 +93,7 @@ def WordEmbedding(text, dim = 128, f_func = _flat, sparsify = 100, n_epochs = 8,
                 k = 1, cov_type = 'full', γ = 0.75, η = 0.85, n_jobs = 8):
     '''This function creates a word embedding given a text
     
-    Use: X, word2idx = WordEmbedding(text, dim = 128, n_epochs = 8, window_size = 5, min_count = 5, th = 1, verbose = True, 
-                k = 1, cov_type = 'diag', η0 = 0.5, n_jobs = 8)
+    Use: X, word2idx = WordEmbedding(text)
                 
 
     Inputs
@@ -103,16 +102,16 @@ def WordEmbedding(text, dim = 128, f_func = _flat, sparsify = 100, n_epochs = 8,
     Optional inputs:
         * dim (int): embedding dimensionality. By default set to 128
         * f_func (function): the norm of the word i is f_func(d_i), where d_i is its frequency
+        * sparsify (int): number of non-zero elements of P kept per row. By default set to 100
         * n_epochs (int): number of training epochs. By default set to 8
         * window_size (int): window size parameter of the Skip-Gram algorithm
         * min_count (int): minimal required number of occurrencies of a word in a text. By default set to 5
-        * th (int): all entries in the co-occurency matrix less of equal to th are discarded. By default set to 1
         * verbose (bool): sets the level of verbosity. By default set to True
         * k (int): order of the mixture of Gaussians approximation
         * cov_type (string): determines the covariance type used in the mixture of Gaussians approximation. By default seto to 'diag'
         * η (float): learning parameter. By default set to 0.5
         * γ (float): negative sampling parameter
-        * n_jobs (int): number of parallel jobs used to build the co-occurency matrix
+        * n_jobs (int): number of parallel jobs used to build the co-occurrence matrix
 
     Outputs:
         * X (array): embedding matrix
@@ -175,7 +174,7 @@ def WordEmbedding(text, dim = 128, f_func = _flat, sparsify = 100, n_epochs = 8,
             
     tf = time() - t0
     
-    # Eder
+    # EDRep
     if verbose:
         print('Time elapsed before optimization: ' + str(tf))
         print('Computing the embedding')
@@ -189,7 +188,6 @@ def top_n_idx_sparse(matrix, th):
     """Return index of top fraction th of top values in each row of a sparse matrix."""
     top_n_idx = []
     for le, ri in zip(matrix.indptr[:-1], matrix.indptr[1:]):
-        # n_row_pick = int(th*(ri - le)+1)
         n_row_pick = min(ri - le, th)
         top_n_idx.append(
             matrix.indices[

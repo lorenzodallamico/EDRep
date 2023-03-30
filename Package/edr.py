@@ -28,7 +28,7 @@ from copy import copy
 
 def CreateEmbedding(Pv, dim = 128, f = None, p0 = None, n_epochs = 20, n_prod = 1, sum_partials = False, k = 1, η = .85, verbose = True, cov_type = 'full'):
     '''
-    This function creates a distributed representation of a probability distribution as presented in (Dall'Amico, Belliardo: Efficient distributed representation of complex entities beyond negative sampling)
+    This function creates a distributed representation of a probability distribution as presented in (Dall'Amico, Belliardo: Efficient distributed representations beyond negative sampling)
 
     Use: X = CreateEmbedding(Pv)
 
@@ -86,7 +86,7 @@ def CreateEmbedding(Pv, dim = 128, f = None, p0 = None, n_epochs = 20, n_prod = 
 def computeZest(X, indeces, k = 5, return_params = False, cov_type = 'full'):
     '''This function is our implementation of Algorithm 1 and allows to efficiently estimate a set of Z_i values
 
-    Use: Z_vec = computeZest(X, indeces, k = 5, return_params = False)
+    Use: Z_vec = computeZest(X, indeces)
 
     Inputs:
         * X (array): input embedding matrix

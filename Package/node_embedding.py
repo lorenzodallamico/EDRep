@@ -1,16 +1,16 @@
 import numpy as np
 from node2vec.model import Node2Vec
 
-from eder import *
+from edr import *
 
 
 _flat = lambda x:x**0
 
 
 def NodeEmbedding(A, dim, f_func = _flat, n_epochs = 30, n_prod = 1, k = 1, cov_type = 'full', verbose = True, η = 0.85):
-    '''Algorithm for node embedding using Eder
+    '''Algorithm for node embedding using EDRep
     
-    * Use: X = NodeEmbedding(A, dim, f, n_epochs = 35, n_prod = 1, k = 1, cov_type = 'diag', verbose = True, η0 = 0.8)
+    * Use: X = NodeEmbedding(A, dim)
     
     * Inputs:
         * A (scipy sparse matrix): graph adjacency matrix. It can be weighted and non-symmetric, but its entries must be non-negative
@@ -49,7 +49,7 @@ def NodeEmbedding(A, dim, f_func = _flat, n_epochs = 30, n_prod = 1, k = 1, cov_
     # normalize
     f = f/np.mean(f)    
     
-    # Eder
+    # EDRep
     X = CreateEmbedding([P], f = f, dim = dim, n_epochs = n_epochs, n_prod = n_prod, sum_partials = True,
                       k = k, verbose = verbose, cov_type = cov_type, η = η)
     
