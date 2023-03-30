@@ -3,38 +3,38 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - _libgcc_mutex=0.1=conda_forge
-  - _openmp_mutex=4.5=2_gnu
-  - ca-certificates=2022.12.7=ha878542_0
-  - faiss=1.7.2=py39h44b29b8_3_cpu
-  - ld_impl_linux-64=2.40=h41732ed_0
-  - libblas=3.9.0=16_linux64_openblas
-  - libcblas=3.9.0=16_linux64_openblas
-  - libfaiss=1.7.2=h5ceb0a5_3_cpu
-  - libfaiss-avx2=1.7.2=h1234567_3_cpu
-  - libffi=3.4.2=h7f98852_5
-  - libgcc-ng=12.2.0=h65d4601_19
-  - libgfortran-ng=12.2.0=h69a702a_19
-  - libgfortran5=12.2.0=h337968e_19
-  - libgomp=12.2.0=h65d4601_19
-  - liblapack=3.9.0=16_linux64_openblas
-  - libopenblas=0.3.21=pthreads_h78a6416_3
-  - libsqlite=3.40.0=h753d276_0
-  - libstdcxx-ng=12.2.0=h46fd767_19
-  - libzlib=1.2.13=h166bdaf_4
-  - ncurses=6.3=h27087fc_1
-  - openssl=3.1.0=h0b41bf4_0
-  - pip=23.0.1=pyhd8ed1ab_0
-  - python=3.9.7=hf930737_3_cpython
-  - python_abi=3.9=3_cp39
-  - readline=8.2=h8228510_1
-  - setuptools=67.6.1=pyhd8ed1ab_0
-  - sqlite=3.40.0=h4ff8645_0
-  - tk=8.6.12=h27826a3_0
-  - tzdata=2023c=h71feb2d_0
-  - wheel=0.40.0=pyhd8ed1ab_0
-  - xz=5.2.6=h166bdaf_0
-  - zlib=1.2.13=h166bdaf_4
+  - _libgcc_mutex=0.1
+  - _openmp_mutex=4.5
+  - ca-certificates=2022.12.7
+  - faiss=1.7.2
+  - ld_impl_linux-64=2.40
+  - libblas=3.9.0
+  - libcblas=3.9.0
+  - libfaiss=1.7.2
+  - libfaiss-avx2=1.7.2
+  - libffi=3.4.2
+  - libgcc-ng=12.2.0
+  - libgfortran-ng=12.2.0
+  - libgfortran5=12.2.0
+  - libgomp=12.2.0
+  - liblapack=3.9.0
+  - libopenblas=0.3.21
+  - libsqlite=3.40.0
+  - libstdcxx-ng=12.2.0
+  - libzlib=1.2.13
+  - ncurses=6.3
+  - openssl=3.1.0
+  - pip=23.0.1
+  - python=3.9.7
+  - python_abi=3.9
+  - readline=8.2
+  - setuptools=67.6.1
+  - sqlite=3.40.0
+  - tk=8.6.12
+  - tzdata=2023c
+  - wheel=0.40.0
+  - xz=5.2.6
+  - zlib=1.2.13
   - pip:
     - anyio==3.6.2
     - argon2-cffi==21.3.0
@@ -141,3 +141,4 @@ dependencies:
     - websocket-client==1.5.1
     - widgetsnbextension==4.0.7
     - zipp==3.15.0
+prefix: /home/lorenzo/anaconda3/envs/EDRep
