@@ -39,7 +39,7 @@ sudo apt-get install libstdc++6
 
 ## Authors
 
-* [Lorenzo Dall'Amico](https://lorenzodallamico.github.io/) - lorenzo.dallamic@isi.it
+* [Lorenzo Dall'Amico](https://lorenzodallamico.github.io/) - lorenzo.dallamico@isi.it
 * Enrico Maria Belliardo - enrico.belliardo@isi.it
 
 ## License
