@@ -41,7 +41,7 @@ conda env create -f EDRep_env.yml
 conda activate EDRep
 ```
 
-On top of this, in order to use the `web.datasets.similarity` package you should follow the installation instructions of https://github.com/kudkudak/word-embeddings-benchmarks. Finally, if the `faiss` package creates problem, you might need to install its dependency manually with
+On top of this, in order to use the `web.datasets.similarity` package you should follow the installation instructions of https://github.com/kudkudak/word-embeddings-benchmarks. Similarly, the `node2vec` package can be installed following the instructions at https://github.com/thibaudmartinez/node2vec (Linux 64 only). Finally, if the `faiss` package creates problem, you might need to install its dependency manually with
 
 ```
 sudo apt-get install libstdc++6
