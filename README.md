@@ -3,6 +3,16 @@
 
 This is the code related to (Dall'Amico, Belliardo *Efficient distributed representation beyond negative sampling*). If you use this code please cite the related article.
 
+```
+@misc{dallamico2023efficient,
+      title={Efficient distributed representations beyond negative sampling}, 
+      author={Lorenzo Dall'Amico and Enrico Maria Belliardo},
+      year={2023},
+      eprint={2303.17475},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
 
 
 ## Content
