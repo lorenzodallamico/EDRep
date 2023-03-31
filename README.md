@@ -1,7 +1,7 @@
 # EDRep: Efficient Distributed Representations
 
 
-This is the code related to (Dall'Amico, Belliardo *Efficient distributed representation beyond negative sampling*). If you use this code please cite the related article.
+This is the code related to (Dall'Amico, Belliardo *Efficient distributed representation beyond negative sampling*). If you use this code please cite the related article. In this paper we show an efficient method to obtain distributed representations of complex entities given a sampling probability matrix encoding affinity between the items.
 
 ```
 @misc{dallamico2023efficient,
