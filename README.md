@@ -77,7 +77,30 @@ X = CreateEmbedding(Pv)
 
 '''
 ```
+The function `NodeEmbedding` creates a node distributed representation of a graph given its adajcency matrix representation. The graph can be directed or undirected and it can be weigted, but weights must be non-negative.
 
+```python
+'''Algorithm for node embedding using EDRep
+    
+    * Use: X = NodeEmbedding(A, dim)
+    
+    * Inputs:
+        * A (scipy sparse matrix): graph adjacency matrix. It can be weighted and non-symmetric, but its entries must be non-negative
+        * dim (int): embedding dimension
+        
+    * Optional inputs:
+        * f_func (function): the norm of x_i will be set to f(d_i)
+        * n_epochs (int): number of training epochs in the optimization. By default set to 35   
+        * n_prod (int): maximal distance reached by the random walker. By default set to 1
+        * k (int): order of the mixture of Gaussian approximation. By default set to 1
+        * cov_type (string): determines the covariance type in the optimization process. Can be 'diag' or 'full'
+        * verbose (bool): if True (default) it prints the update
+        * η (float): learning rate
+        
+    * Output:
+        * X (array): embedding matrix
+    '''
+    ```
 
 ## Authors
 
