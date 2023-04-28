@@ -77,13 +77,12 @@ X = CreateEmbedding(Pv)
 
 '''
 ```
-The function `NodeEmbedding` creates a node distributed representation of a graph given its adajcency matrix representation. The graph can be directed or undirected and it can be weigted, but weights must be non-negative.
+* The function `NodeEmbedding` creates a node distributed representation of a graph given its adajcency matrix representation. The graph can be directed or undirected and it can be weigted, but weights must be non-negative.
 
 ```python
-'''Algorithm for node embedding using EDRep
-    
-    * Use: X = NodeEmbedding(A, dim)
-    
+X = NodeEmbedding(A, dim)
+
+'''
     * Inputs:
         * A (scipy sparse matrix): graph adjacency matrix. It can be weighted and non-symmetric, but its entries must be non-negative
         * dim (int): embedding dimension
@@ -100,7 +99,39 @@ The function `NodeEmbedding` creates a node distributed representation of a grap
     * Output:
         * X (array): embedding matrix
     '''
-    ```
+    
+```
+* Finally, the matrix `WordEmbedding` provides a word distributed representation generated from a text.
+
+```python
+
+X, word2idx = WordEmbedding(text)
+ 
+'''
+
+    Inputs
+        * text (list of lists of strings): input text
+
+    Optional inputs:
+        * dim (int): embedding dimensionality. By default set to 128
+        * f_func (function): the norm of the word i is f_func(d_i), where d_i is its frequency
+        * sparsify (int): number of non-zero elements of P kept per row. By default set to 100
+        * n_epochs (int): number of training epochs. By default set to 8
+        * window_size (int): window size parameter of the Skip-Gram algorithm
+        * min_count (int): minimal required number of occurrencies of a word in a text. By default set to 5
+        * verbose (bool): sets the level of verbosity. By default set to True
+        * k (int): order of the mixture of Gaussians approximation
+        * cov_type (string): determines the covariance type used in the mixture of Gaussians approximation. By default seto to 'diag'
+        * η (float): learning parameter. By default set to 0.5
+        * γ (float): negative sampling parameter
+        * n_jobs (int): number of parallel jobs used to build the co-occurrence matrix
+
+    Outputs:
+        * X (array): embedding matrix
+        * word2idx (dictionary): mapping between words and embedding indices
+    '''
+```
+
 
 ## Authors
 
