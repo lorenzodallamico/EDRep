@@ -43,9 +43,41 @@ conda activate EDRep
 
 On top of this, in order to use the `web.datasets.similarity` package you should follow the installation instructions of https://github.com/kudkudak/word-embeddings-benchmarks. Similarly, the `node2vec` package can be installed following the instructions at https://github.com/thibaudmartinez/node2vec (Linux 64 only). Finally, if the `faiss` package creates problem, you might need to install its dependency manually with
 
-```
+````  
 sudo apt-get install libstdc++6
 ```
+
+## Use
+
+For the use of our package, we invite the practitioner to refer to the jupyter notebooks contained in the `Notebooks` folder. We here report the comment lines of the three main functions that can used from our package.
+
+* The function `CreateEmbedding` is the main function and it provides a distributed representation given a probability matrix
+
+```python
+X = CreateEmbedding(Pv)
+
+'''
+    Inputs:
+        * Pv (list sparse array): the P matrix is provided by the product of all the elements appearing in Pv.from right to left. If only one element is given (Pv = [P]) and `n_prod > 1`, the total probability matrix is given by P^n_prod. If `sum_partials = True` the total matrix `P = (Pv[0] + Pv[1]@Pv[0] + Pv[2]@Pv[1]@Pv[0] + ...)/len(Pv) `. If the resulting matrix P is not a probability matrix (hence it its rows do not sum up to 1), a warning is raised.
+
+    Optional inputs:
+        * f (function): this vector specifies the Euclidean norm of each embedding vector. If it is set to `None` (default), then it is considered to be the all ones vector of size n.
+        * dim (int): dimension of the embedding. By default set to 128
+        * p0 (array): array of size n that specifies the "null model" probability
+        * n_epochs (int): number of iterations in the optimization process. By default set to 20
+        * n_prod (int): refer to the description of `Pv` for the use of this parameter. Note that if `len(Pv) > 1`, `n_prod` must be set equal to 1 (default value).
+        * sum_partials (bool): refer to the description of `Pv` for the use of this parameter. The default value is `False`
+        * k (int): order of the GMM approximation. By default set to 8
+        * η (float): largest adimissible learning rate. By default set to 0.7.
+        * verbose (bool): determines whether the algorithm produces some output for the updates. By default set to True
+        * cov_type (string): if 'diag' (default) it computes a diagonal covariance matrix. If 'full' it computes the full covariance matrix. Otherwise it raise a warning.
+        
+    Output:
+        * X (array): solution to the optimization problem for the input weights
+
+'''
+```
+
 
 ## Authors
 
