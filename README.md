@@ -1,7 +1,8 @@
 # EDRep: Efficient Distributed Representations
 
 
-This is the code related to (Dall'Amico, Belliardo *Efficient distributed representation beyond negative sampling*). If you use this code please cite the related article. In this paper we show an efficient method to obtain distributed representations of complex entities given a sampling probability matrix encoding affinity between the items.
+This is the code related to (Dall'Amico, Belliardo *Efficient distributed representation beyond negative sampling*). If you use this code please cite the related article. In this paper we show an efficient method to obtain distributed representations of complex entities given a sampling probability matrix encoding affinity between the items. The main result of the article describes an algorithm with linear-in-size complexity to compute the *Softmax* normalization constant, hence avoiding the need to deploy negative sampling to approximate it.
+
 
 ```
 @misc{dallamico2023efficient,
@@ -51,86 +52,86 @@ sudo apt-get install libstdc++6
 
 For the use of our package, we invite the practitioner to refer to the jupyter notebooks contained in the `Notebooks` folder. We here report the comment lines of the three main functions that can used from our package.
 
+</br>
+
 * The function `CreateEmbedding` is the main function and it provides a distributed representation given a probability matrix
 
-```python
-X = CreateEmbedding(Pv)
+    ```python
+    X = CreateEmbedding(Pv)
+    ```
 
-'''
-    Inputs:
-        * Pv (list sparse array): the P matrix is provided by the product of all the elements appearing in Pv.from right to left. If only one element is given (Pv = [P]) and `n_prod > 1`, the total probability matrix is given by P^n_prod. If `sum_partials = True` the total matrix `P = (Pv[0] + Pv[1]@Pv[0] + Pv[2]@Pv[1]@Pv[0] + ...)/len(Pv) `. If the resulting matrix P is not a probability matrix (hence it its rows do not sum up to 1), a warning is raised.
+    > **Inputs**:
+    >> * Pv (list sparse array): the P matrix is provided by the product of all the elements appearing in Pv.from right to left. If only one element is given (Pv = [P]) and `n_prod > 1`, the total probability matrix is given by P^n_prod. If `sum_partials = True` the total matrix `P = (Pv[0] + Pv[1]@Pv[0] + Pv[2]@Pv[1]@Pv[0] + ...)/len(Pv) `. If the resulting matrix P is not a probability matrix (hence it its rows do not sum up to 1), a warning is raised.
+    >
+    > **Optional inputs**:
+    >>* f (function): this vector specifies the Euclidean norm of each embedding vector. If it is set to `None` (default), then it is considered to be the all ones vector of size n.
+    >>* dim (int): dimension of the embedding. By default set to 128
+    >>* p0 (array): array of size n that specifies the "null model" probability
+    >>* n_epochs (int): number of iterations in the optimization process. By default set to 20
+    >>* n_prod (int): refer to the description of `Pv` for the use of this parameter. Note that if `len(Pv) > 1`, `n_prod` must be set equal to 1 (default value).
+    >>* sum_partials (bool): refer to the description of `Pv` for the use of this parameter. The default value is `False`
+    >>* k (int): order of the GMM approximation. By default set to 8
+    >>* η (float): largest adimissible learning rate. By default set to 0.7.
+    >>* verbose (bool): determines whether the algorithm produces some output for the updates. By default set to True
+    >>* cov_type (string): if 'diag' (default) it computes a diagonal covariance matrix. If 'full' it computes the full covariance matrix. Otherwise it raise a warning.
+    >
+    > **Output**:
+    >>* X (array): solution to the optimization problem for the input weights
 
-    Optional inputs:
-        * f (function): this vector specifies the Euclidean norm of each embedding vector. If it is set to `None` (default), then it is considered to be the all ones vector of size n.
-        * dim (int): dimension of the embedding. By default set to 128
-        * p0 (array): array of size n that specifies the "null model" probability
-        * n_epochs (int): number of iterations in the optimization process. By default set to 20
-        * n_prod (int): refer to the description of `Pv` for the use of this parameter. Note that if `len(Pv) > 1`, `n_prod` must be set equal to 1 (default value).
-        * sum_partials (bool): refer to the description of `Pv` for the use of this parameter. The default value is `False`
-        * k (int): order of the GMM approximation. By default set to 8
-        * η (float): largest adimissible learning rate. By default set to 0.7.
-        * verbose (bool): determines whether the algorithm produces some output for the updates. By default set to True
-        * cov_type (string): if 'diag' (default) it computes a diagonal covariance matrix. If 'full' it computes the full covariance matrix. Otherwise it raise a warning.
-        
-    Output:
-        * X (array): solution to the optimization problem for the input weights
 
-'''
-```
+</br>
+
 * The function `NodeEmbedding` creates a node distributed representation of a graph given its adajcency matrix representation. The graph can be directed or undirected and it can be weigted, but weights must be non-negative.
 
-```python
-X = NodeEmbedding(A, dim)
+    ```python
+    X = NodeEmbedding(A, dim)
+    ```
 
-'''
-    * Inputs:
-        * A (scipy sparse matrix): graph adjacency matrix. It can be weighted and non-symmetric, but its entries must be non-negative
-        * dim (int): embedding dimension
-        
-    * Optional inputs:
-        * f_func (function): the norm of x_i will be set to f(d_i)
-        * n_epochs (int): number of training epochs in the optimization. By default set to 35   
-        * n_prod (int): maximal distance reached by the random walker. By default set to 1
-        * k (int): order of the mixture of Gaussian approximation. By default set to 1
-        * cov_type (string): determines the covariance type in the optimization process. Can be 'diag' or 'full'
-        * verbose (bool): if True (default) it prints the update
-        * η (float): learning rate
-        
-    * Output:
-        * X (array): embedding matrix
-    '''
-    
-```
+    > **Inputs**
+    >>* A (scipy sparse matrix): graph adjacency matrix. It can be weighted and non-symmetric, but its entries must be non-negative
+    >>* dim (int): embedding dimension
+    >
+    > **Optional inputs**
+    >>* f_func (function): the norm of x_i will be set to f(d_i)
+    >>* n_epochs (int): number of training epochs in the optimization. By default set to 35   
+    >>* n_prod (int): maximal distance reached by the random walker. By default set to 1
+    >>* k (int): order of the mixture of Gaussian approximation. By default set to 1
+    >>* cov_type (string): determines the covariance type in the optimization process. Can be 'diag' or 'full'
+    >>* verbose (bool): if True (default) it prints the update
+    >>* η (float): learning rate
+    >
+    > **Output**
+    >* X (array): embedding matrix
+
+</br>
+
+
 * Finally, the matrix `WordEmbedding` provides a word distributed representation generated from a text.
 
-```python
-
-X, word2idx = WordEmbedding(text)
- 
-'''
-
-    Inputs
-        * text (list of lists of strings): input text
-
-    Optional inputs:
-        * dim (int): embedding dimensionality. By default set to 128
-        * f_func (function): the norm of the word i is f_func(d_i), where d_i is its frequency
-        * sparsify (int): number of non-zero elements of P kept per row. By default set to 100
-        * n_epochs (int): number of training epochs. By default set to 8
-        * window_size (int): window size parameter of the Skip-Gram algorithm
-        * min_count (int): minimal required number of occurrencies of a word in a text. By default set to 5
-        * verbose (bool): sets the level of verbosity. By default set to True
-        * k (int): order of the mixture of Gaussians approximation
-        * cov_type (string): determines the covariance type used in the mixture of Gaussians approximation. By default seto to 'diag'
-        * η (float): learning parameter. By default set to 0.5
-        * γ (float): negative sampling parameter
-        * n_jobs (int): number of parallel jobs used to build the co-occurrence matrix
-
-    Outputs:
-        * X (array): embedding matrix
-        * word2idx (dictionary): mapping between words and embedding indices
-    '''
-```
+    ```python
+    X, word2idx = WordEmbedding(text)
+    ```
+    
+    > **Inputs**
+    >> * text (list of lists of strings): input text
+    >
+    > **Optional inputs**
+    >>* dim (int): embedding dimensionality. By default set to 128
+    >>* f_func (function): the norm of the word i is f_func(d_i), where d_i is its frequency
+    >>* sparsify (int): number of non-zero elements of P kept per row. By default set to 100
+    >>* n_epochs (int): number of training epochs. By default set to 8
+    >>* window_size (int): window size parameter of the Skip-Gram algorithm
+    >>* min_count (int): minimal required number of occurrencies of a word in a text. By default set to 5
+    >>* verbose (bool): sets the level of verbosity. By default set to True
+    >>* k (int): order of the mixture of Gaussians approximation
+    >>* cov_type (string): determines the covariance type used in the mixture of Gaussians approximation. By default seto to 'diag'
+    >>* η (float): learning parameter. By default set to 0.5
+    >>* γ (float): negative sampling parameter
+    >>* n_jobs (int): number of parallel jobs used to build the co-occurrence matrix
+    >
+    >> **Outputs**
+    >>* X (array): embedding matrix
+    >>* word2idx (dictionary): mapping between words and embedding indices
 
 
 ## Authors
