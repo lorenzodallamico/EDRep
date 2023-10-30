@@ -19,7 +19,7 @@ from sklearn.metrics.cluster import normalized_mutual_info_score as nmi
 def adj(C_matrix,c, label, theta, giant):
     ''' Function that generates the adjacency matrix A with n nodes and k communities
     
-    Use: A = adj(C_matrix,c, label, theta)
+    Use: A, label = adj(C_matrix,c, label, theta)
     
     Input:
         * C_matrix (array of size k x k) : affinity matrix of the network C
@@ -30,7 +30,7 @@ def adj(C_matrix,c, label, theta, giant):
     
     Output:
         * A (sparse matrix of size n x n) : symmetric adjacency matrix
-        * label (array): label vector of the remaing nodes
+        * label (array): label vector of the nodes in the giant component if giant = True
     '''
 
     # number of communities
@@ -105,11 +105,15 @@ def matrix_C(c_out, c,fluctuation, fraction):
 def computeScore(X, ℓ, n_trials = 5, norm_bool = True):
     '''This function computes the NMI as inferred from EM applied on the embedding Φ
     
-    Use: NMI = computeNMI(X, ℓ)
+    Use: NMI = computeScore(X, ℓ)
     
     Inputs: 
         * X (array): embedding from which the labels should be estimated
         * ℓ (array): true labels
+
+    Optional inputs:
+        * n_trials (int): number of repetitions of k-means step. By default set to 5
+        * norm_bool (bool): if True (default), it normalizes the rows of X
         
     Outpus:
         * NMI (float): normalized mutual information score
@@ -140,11 +144,12 @@ def computeScore(X, ℓ, n_trials = 5, norm_bool = True):
 def find_sol(S, M, r, eps):
     ''' Function that solves Equation 24 through dicotomy
     Use : 
-        rp = find_sol(S, M, r)
+        rp = find_sol(S, M, r, eps)
     Input :
-        S (array of size p x p) : diagonal matrix with the smallest eigenvalues of H_r
-        M (array os size p x p) : X^T@D@X, where X is the n x p matrix containing the p smallest eigenvectors of H_r
-        r (scalar) : value of r for which X and S are computed
+        * S (array of size p x p) : diagonal matrix with the smallest eigenvalues of H_r
+        * M (array os size p x p) : X^T@D@X, where X is the n x p matrix containing the p smallest eigenvectors of H_r
+        * r (scalar) : value of r for which X and S are computed
+        * eps (float): precision error
     Output :
         rp (scalar) : value of r \in (1, r) solution to Equation 24
     '''
@@ -194,15 +199,16 @@ def find_rho_B(A):
 def find_zeta(A, rho, n_clusters, eps, verbose):
     ''' Function that calculates the vector zeta on a connected network A given k as zeta_p = min_{r > 1} {r : s_p(H_r) = 0}
     Use : 
-        zeta_v, Y = find_zeta(A, rho, n_clusters, eps)
+        zeta_v, Y = find_zeta(A, rho, n_clusters, eps, verbose)
     Input :
-        A (sparse matrix of size n) : adjacency matrix of the network
-        rho (scalar) : spectral radius of the non-backtracking matrix
-        n_clusters (scalar) : number of clusters k
-        eps (scalar) : precision of the estimate
+        * A (sparse matrix of size n) : adjacency matrix of the network
+        * rho (scalar) : spectral radius of the non-backtracking matrix
+        * n_clusters (scalar) : number of clusters k
+        * eps (scalar) : precision of the estimate
+        * verbose (bool): sets the level of verbosity
     Output :
-        zeta_v (array of size k) : vector containing the values of zeta_p for 1 \leq p \leq k
-        Y (array of size n x k) : matrix containing the informative eigenvectors on which k-means whould be performed
+        * zeta_v (array of size k) : vector containing the values of zeta_p for 1 \leq p \leq k
+        * Y (array of size n x k) : matrix containing the informative eigenvectors on which k-means whould be performed
     '''
     
 
@@ -252,14 +258,14 @@ def community_detection(A, *args, **kwargs):
     Input :
         A (sparse matrix n x n) : adjacency matrix
         **kwargs:
-            n_max (scalar) : maximal number of possible classes to look for during the estimation. If not specified set equal to 80
-            real_classes (array of size n) : vector containing the true labels of the network. If not specified set to None
-            n_clusters (scalar) : number of clusters k. If not specified it will estimate it
-            eps (scalar) : precision rate. If not specified set to machine precision
-            projection (True/False) : performs the projection on the unitary hypersphere in dimension k, before the k-means step. If not else specified, set to true
-            verbose (True/False): determines if an output is printed
+            * n_max (scalar) : maximal number of possible classes to look for during the estimation. If not specified set equal to 80
+            * real_classes (array of size n) : vector containing the true labels of the network. If not specified set to None
+            * n_clusters (scalar) : number of clusters k. If not specified it will estimate it
+            * eps (scalar) : precision rate. If not specified set to machine precision
+            * projection (True/False) : performs the projection on the unitary hypersphere in dimension k, before the k-means step. If not else specified, set to true
+            * verbose (True/False): determines if an output is printed
             
-    Outout :
+    Output :
         X (array): embedding matrix
         
     '''

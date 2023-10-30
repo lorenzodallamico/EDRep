@@ -6,10 +6,9 @@ import itertools
 from time import time
 
 
-from edr import *
+from EDRep import *
 
 
-_flat = lambda x:x**0
 
 def PreProcessText(text, min_count):
     '''This function makes an initial cleaning of the text, dropping occurrencies of most frequent and very unfrequent words.
@@ -27,7 +26,7 @@ def PreProcessText(text, min_count):
 
     # count the words
     counter = Counter(text)
-
+    
     # all words in the text and their frequency
     all_words = np.array(list(counter.keys()))
     counts = np.array(list(counter.values()))
@@ -82,39 +81,38 @@ def CoOccurrenceMatrix(text, distance, n):
         counter = Counter(v)
         idx1 = [a[0] for a in counter.keys()]
         idx2 = [a[1] for a in counter.keys()]
-        A_list.append(csr_matrix((list(counter.values()), (idx1, idx2)), shape = (n,n)))
+        w = np.array(list(counter.values()))
+        A_list.append(csr_matrix((w, (idx1, idx2)), shape = (n,n)))
 
     A = np.sum(A_list)
     A = A + A.T
 
     return A
 
-def WordEmbedding(text, dim = 128, f_func = _flat, sparsify = 100, n_epochs = 8, window_size = 1, min_count = 5, verbose = True, 
-                k = 1, cov_type = 'full', γ = 0.75, η = 0.85, n_jobs = 8):
+def WordEmbedding(text, dim, n_epochs = 10, window_size = 1, min_count = 5, verbose = True, 
+                k = 1, γ = 0.75, η = 0.85, n_jobs = 8, sym = True):
     '''This function creates a word embedding given a text
     
-    Use: X, word2idx = WordEmbedding(text)
+    Use: res, word2idx = WordEmbedding(text, dim)
                 
 
     Inputs
         * text (list of lists of strings): input text
+        * dim (int): embedding dimensionality
 
     Optional inputs:
-        * dim (int): embedding dimensionality. By default set to 128
-        * f_func (function): the norm of the word i is f_func(d_i), where d_i is its frequency
-        * sparsify (int): number of non-zero elements of P kept per row. By default set to 100
-        * n_epochs (int): number of training epochs. By default set to 8
+        * n_epochs (int): number of training epochs. By default set to 10
         * window_size (int): window size parameter of the Skip-Gram algorithm
         * min_count (int): minimal required number of occurrencies of a word in a text. By default set to 5
         * verbose (bool): sets the level of verbosity. By default set to True
         * k (int): order of the mixture of Gaussians approximation
-        * cov_type (string): determines the covariance type used in the mixture of Gaussians approximation. By default seto to 'diag'
-        * η (float): learning parameter. By default set to 0.5
         * γ (float): negative sampling parameter
-        * n_jobs (int): number of parallel jobs used to build the co-occurrence matrix
+        * η (float): learning parameter. By default set to 0.5
+        * n_jobs (int): number of parallel jobs used to build the co-occurency matrix
+        * sym (bool): if True (default) the algorithm is run in its symmetric version
 
     Outputs:
-        * X (array): embedding matrix
+        * res: EDRep class
         * word2idx (dictionary): mapping between words and embedding indices
     '''
 
@@ -147,30 +145,8 @@ def WordEmbedding(text, dim = 128, f_func = _flat, sparsify = 100, n_epochs = 8,
     else:
         result = [CoOccurrenceMatrix(text, window_size, n)]
 
-    
-    f = f_func(frequency)
-
-    # apply a threshold for the decay
-    th = np.sort(f)[int(0.95*n)]
-    f[f > th] = th*np.sqrt(np.log(f[f > th])/np.log(th))
-
-    # normalize
-    f = f/np.mean(f)
-
     A = np.sum(result)
-    
-    # get the sparified matrix P
-    if sparsify < n:
-        if verbose:
-            print('Sparsifying the matrix')
-    
-        idx2 = top_n_idx_sparse(A, sparsify)
-        idx1 = np.concatenate([np.ones(len(a))*i for i, a in enumerate(idx2)])
-        idx2 = np.concatenate(idx2)
-        
-        v = np.array(A[(idx1, idx2)])[0]
-        A = csr_matrix((v, (idx1, idx2)), shape = (n,n))
-        P = diags((A@np.ones(n))**(-1)).dot(A)
+    P = diags((A@np.ones(n))**(-1)).dot(A)
             
     tf = time() - t0
     
@@ -178,20 +154,7 @@ def WordEmbedding(text, dim = 128, f_func = _flat, sparsify = 100, n_epochs = 8,
     if verbose:
         print('Time elapsed before optimization: ' + str(tf))
         print('Computing the embedding')
-    X = CreateEmbedding([P], f = f, dim = dim, p0 = frequency**γ, n_epochs = n_epochs, n_prod = 1., sum_partials = False,
-                      k = k, verbose = verbose, cov_type = cov_type, η = η)
-
-    return X, word2idx
-
-
-def top_n_idx_sparse(matrix, th):
-    """Return index of top fraction th of top values in each row of a sparse matrix."""
-    top_n_idx = []
-    for le, ri in zip(matrix.indptr[:-1], matrix.indptr[1:]):
-        n_row_pick = min(ri - le, th)
-        top_n_idx.append(
-            matrix.indices[
-                le + np.argpartition(matrix.data[le:ri], -n_row_pick)[-n_row_pick:]
-            ]
-        )
-    return top_n_idx
+    result = CreateEmbedding([P], dim = dim, p0 = frequency**γ, n_epochs = n_epochs, sum_partials = False,
+                      k = k, verbose = verbose, η = η, sym = sym)
+    
+    return result, word2idx

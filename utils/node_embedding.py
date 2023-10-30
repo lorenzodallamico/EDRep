@@ -1,32 +1,28 @@
 import numpy as np
 from node2vec.model import Node2Vec
 
-from edr import *
+from EDRep import *
 
 
-_flat = lambda x:x**0
-
-
-def NodeEmbedding(A, dim, f_func = _flat, n_epochs = 30, n_prod = 1, k = 1, cov_type = 'full', verbose = True, η = 0.85):
-    '''Algorithm for node embedding using EDRep
+def NodeEmbedding(A, dim, n_epochs = 30, walk_length = 5, k = 1, verbose = True, η = 0.5, sym = True):
+    '''Algorithm for node embedding using Eder
     
-    * Use: X = NodeEmbedding(A, dim)
-    
+    * Use: res = NodeEmbedding(A, dim)
+
     * Inputs:
         * A (scipy sparse matrix): graph adjacency matrix. It can be weighted and non-symmetric, but its entries must be non-negative
         * dim (int): embedding dimension
         
     * Optional inputs:
-        * f_func (function): the norm of x_i will be set to f(d_i)
-        * n_epochs (int): number of training epochs in the optimization. By default set to 35   
-        * n_prod (int): maximal distance reached by the random walker. By default set to 1
+        * n_epochs (int): number of training epochs in the optimization. By default set to 30
+        * walk_length (int): maximal distance reached by the random walker. By default set to 5
         * k (int): order of the mixture of Gaussian approximation. By default set to 1
-        * cov_type (string): determines the covariance type in the optimization process. Can be 'diag' or 'full'
         * verbose (bool): if True (default) it prints the update
-        * η (float): learning rate
+        * η (float): learning rate, by default set to 0.5
+        * sym (bool): determines whether to use the symmetric (detfault) version of the algoritm
         
     * Output:
-        * X (array): embedding matrix
+        * res: EDREp class
     '''
     
     # check that all entries of A are positive
@@ -38,22 +34,12 @@ def NodeEmbedding(A, dim, f_func = _flat, n_epochs = 30, n_prod = 1, k = 1, cov_
     d = A@np.ones(n)
     D_1 = diags(d**(-1))
     P = D_1.dot(A)
-
-    # bound the distribution to its 95 percentile
-    f = f_func(d)
-
-    # apply a threshold for the decay
-    th = np.sort(f)[int(0.95*n)]
-    f[f > th] = th*np.sqrt(np.log(f[f > th])/np.log(th))   
-
-    # normalize
-    f = f/np.mean(f)    
+ 
+    # Eder
+    embedding = CreateEmbedding([P for i in range(walk_length)], dim = dim, n_epochs = n_epochs, 
+                        sum_partials = True, k = k, verbose = verbose, η = η, sym = sym)
     
-    # EDRep
-    X = CreateEmbedding([P], f = f, dim = dim, n_epochs = n_epochs, n_prod = n_prod, sum_partials = True,
-                      k = k, verbose = verbose, cov_type = cov_type, η = η)
-    
-    return X
+    return embedding
 
 
 def Node2VecNS(A, dim, verbose):
