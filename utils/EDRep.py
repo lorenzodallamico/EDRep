@@ -35,7 +35,7 @@ class EDRep_class:
 
 def CreateEmbedding(Pv, dim = 128, p0 = None, n_epochs = 30, sum_partials = False, k = 1, η = .8, verbose = True, sym = True):
     '''
-    This function creates a distributed representation of a probability distribution as presented in (Dall'Amico, Belliardo: Efficient distributed representation of complex entities beyond negative sampling)
+    This function implemnts the EDRep algorithm
 
     Use: EDRep = CreateEmbedding(Pv)
 
@@ -121,9 +121,6 @@ def computeZest(X, indeces, k = 5):
     '''
 
     n, dim = np.shape(X)
-    norm_vector = np.sqrt(X**2@np.ones(dim))
-    if np.max(np.abs(norm_vector - 1)) > 1e-10:
-        raise Warning('The embedding vectors are not normalized')
 
     if k > 1:
         # estimate the mixture parameters using kmeans

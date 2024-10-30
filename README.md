@@ -1,7 +1,7 @@
 # EDRep: Efficient Distributed Representations
 
 
-This is the code related to (Dall'Amico, Belliardo *Efficient distributed representation beyond negative sampling*). If you use this code please cite the related article. In this paper we show an efficient method to obtain distributed representations of complex entities given a sampling probability matrix encoding affinity between the items. The main result of the article describes an algorithm with linear-in-size complexity to compute the *Softmax* normalization constant, hence avoiding the need to deploy negative sampling to approximate it.
+This is the code related to (Dall'Amico, Belliardo *Efficient distributed representations with linear-time attention scores normalization*). If you use this code please cite the related article. In this paper we show an efficient method to obtain distributed representations of complex entities given a sampling probability matrix encoding affinity between the items. The main result of the article describes an algorithm with linear-in-size complexity to compute the *Softmax* normalization constant, hence avoiding the need to deploy negative sampling to approximate it.
 
 
 ```
@@ -18,21 +18,13 @@ This is the code related to (Dall'Amico, Belliardo *Efficient distributed repres
 
 ## Content
 
-* `Notebooks`: this folder contain the notebooks needed to reproduce the results present in our paper.
-    * `Test the approximation`: in this notebook we test our approximation on some pre-computed word embeddings. The embeddings are not included but they can be downloaded from http://vectors.nlpl.eu/repository/. This is the code used to produce Figure 1.
-    * `Community detection`: in this notebook I test the performance of our algorithm on community detection, formulated as an inference problem for which we can measure the accuracy. This is the code used to produce Figure 2.
-    * `Real graphs tests`: performs community detection on real graphs and tests the results against `Node2Vec` algorithm. This is the code used to produce Table 1. 
-    * `Text processing`: performs word embeddings and compares the results with the gensim implementation of `word2vec`. This is the code used to obtain the results described in Section 3.2.
-    * `Data_completion`: this notebook makes the test presented in the appendix in which we apply our method to the "asymmetric" setting.
+## Content
 
-* `dataset`: this folder contains the datasets used to perform community detection on real data.
+* `Community detection`: this notebook is meant to be provide an example of usage of our algorithm, applied to the problem of community detection described in the paper.
 * `utils`: this folder contains all the relevant source code:
-
     * `dcsbm`: these functions are used to generate synthetic graphs with a community structure and to run the competing community detection algorithms.
     * `EDRep`: this is the main file in which we have the function to create an embedding of a probability distribution
     * `node_embedding`: this is the main function to create a graph node embedding
-    * `word_embedding`: this contains the main functions to create a word embedding
-
 * `EDRep_env.yml`: this file can be used to create a conda environment with all the useful packages to run our codes.
 
 ## Requirements
@@ -42,12 +34,6 @@ To easily run our codes you can create a conda environment using the commands
 ```
 conda env create -f EDRep_env.yml
 conda activate EDRep
-```
-
-On top of this, in order to use the `web.datasets.similarity` package you should follow the installation instructions of https://github.com/kudkudak/word-embeddings-benchmarks. Similarly, the `node2vec` package can be installed following the instructions at https://github.com/thibaudmartinez/node2vec (Linux 64 only). Finally, if the `faiss` package creates problem, you might need to install its dependency manually with
-
-```
-sudo apt-get install libstdc++6
 ```
 
 ## Use
@@ -110,33 +96,6 @@ For the use of our package, we invite the practitioner to refer to the jupyter n
     >> * res: EDREp class
 
 </br>
-
-
-* Finally, the matrix `WordEmbedding` provides a word distributed representation generated from a text.
-
-    ```python
-    res, word2idx = WordEmbedding(text)
-    ```
-    > **Inputs**
-    >
-    >>  * text (list of lists of strings): input text
-    >>  * dim (int): embedding dimensionality
-    >
-    > **Optional inputs**:
-    >
-    >>  * n_epochs (int): number of training epochs. By default set to 10
-    >>  * window_size (int): window size parameter of the Skip-Gram algorithm
-    >>  * min_count (int): minimal required number of occurrencies of a word in a text. By default set to 5
-    >>  * verbose (bool): sets the level of verbosity. By default set to True
-    >>  * k (int): order of the mixture of Gaussians approximation
-    >>  * γ (float): negative sampling parameter
-    >>  * η (float): learning parameter. By default set to 0.5
-    >>  * n_jobs (int): number of parallel jobs used to build the co-occurency matrix
-    >>  * sym (bool): if True (default) the algorithm is run in its symmetric version
-    >
-    > **Outputs**:
-    >>  * res: EDRep class
-    >>  * word2idx (dictionary): mapping between words and embedding indices
 
 ## Authors
 
