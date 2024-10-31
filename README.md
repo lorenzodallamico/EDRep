@@ -5,13 +5,14 @@ This is the code related to (Dall'Amico, Belliardo *Efficient distributed repres
 
 
 ```
-@misc{dallamico2023efficient,
-      title={Efficient distributed representations beyond negative sampling}, 
+@misc{dallamico2024efficient,
+      title={Efficient distributed representations with linear-time attention scores normalization}, 
       author={Lorenzo Dall'Amico and Enrico Maria Belliardo},
-      year={2023},
+      year={2024},
       eprint={2303.17475},
       archivePrefix={arXiv},
-      primaryClass={cs.LG}
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2303.17475}, 
 }
 ```
 
