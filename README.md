@@ -16,9 +16,6 @@ This is the code related to (Dall'Amico, Belliardo *Efficient distributed repres
 }
 ```
 
-
-## Content
-
 ## Content
 
 * `Community detection`: this notebook is meant to be provide an example of usage of our algorithm, applied to the problem of community detection described in the paper.
