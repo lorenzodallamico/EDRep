@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "EDRep"
+version = "0.1.0"
+description = "Efficient distributed representations with linear-time Softmax normalization"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Lorenzo Dall'Amico, Enrico Maria Belliardo", email = "lorenzo.dallamico@isi.it" }]
+dependencies = []
+requires-python = ">=3.9"

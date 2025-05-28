@@ -33,7 +33,7 @@ class EDRep_class:
         self.ℓ = ℓ
 
 
-def CreateEmbedding(Pv, dim = 128, p0 = None, n_epochs = 30, sum_partials = False, k = 1, η = .8, verbose = True, sym = True):
+def CreateEmbedding(Pv: list, dim : int = 128, p0 = None, n_epochs : int = 30, sum_partials :bool = False, k :int = 1, η : float = .8, verbose : bool = True, sym : bool= True):
     '''
     This function implemnts the EDRep algorithm
 
@@ -50,7 +50,7 @@ def CreateEmbedding(Pv, dim = 128, p0 = None, n_epochs = 30, sum_partials = Fals
         * k (int): order of the GMM approximation. By default set to 1
         * η (float): largest adimissible learning rate. By default set to 0.8.
         * verbose (bool): determines whether the algorithm produces some output for the updates. By default set to True
-        * sym (bool): if True (default) generates a single embedding, while is False it generates two
+        * sym (bool): if True (default) generates a single embedding, while is False it generates two embedding.
         
     Output:
         The function returns a class with the following elements:
@@ -99,7 +99,7 @@ class Zest_class:
         self.Ω = Ω
         self.π = π
 
-def computeZest(X, indeces, k = 5):
+def computeZest(X: np.ndarray, indeces : np.ndarray, k : int = 5):
     '''This function provides the k order approximation of the Z_i for a set of indes.
 
     Use: Zest = computeZest(X, indeces, k = 5)
@@ -146,23 +146,6 @@ def computeZest(X, indeces, k = 5):
 
         return Zest_class(Zest, ℓ, μ, Ω, π)
     
-
-def computeZ(X, indeces):
-    '''This function computes the exact value of Z_i for a set of indeces i
-
-    Use: Z_vec = computeZ(X, indeces)
-
-    Inputs:
-        * X (array): input embedding matrix
-        * indeces (array): indices for which Z_i should be computed
-
-    Output:
-        * Z_vec (array): array containing the Z_i values corresponding to the indeces
-    '''
-
-    Z_vec = np.sum(np.exp(X[indeces]@X.T), axis = 1)
-
-    return Z_vec
 
 ##########################################
 ########## Ancillary functions ###########
