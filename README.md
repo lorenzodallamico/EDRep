@@ -1,7 +1,43 @@
-# EDRep: Efficient Distributed Representations
+  <font size="7"><span style = "color:#4a5759">EDRep</span></font><br /> 
+ <font size="5"><span style = "color:#6b9080"> <b>E</b>fficient <b>d</b>istributed <b>rep</b>resentations with linear-time SoftMax normalization</span></font><br />
 
 
-This is the code related to (Dall'Amico, Belliardo *Efficient distributed representations with linear-time attention scores normalization*). If you use this code please cite the related article. In this paper we show an efficient method to obtain distributed representations of complex entities given a sampling probability matrix encoding affinity between the items. The main result of the article describes an algorithm with linear-in-size complexity to compute the *Softmax* normalization constant, hence avoiding the need to deploy negative sampling to approximate it.
+
+| **[Documentation]()** | **[Paper](https://openreview.net/pdf?id=9M4NKMZOPu)** |
+
+
+This is the Python implementation of the work presented in [(Dall'Amico, Belliardo - *Learning distributed representations with efficient SoftMax normalization*)](https://openreview.net/pdf?id=9M4NKMZOPu). We propose a *2Vec*-like algorithm, formulated for as a general purpose embedding problem. We consider a set of $n$ objects for which we want to obtain a distributed representation $X \in \mathbb{R}^{n\times d}$ in a $d$-dimensional Euclidean space. The algorithm requires a probability matrix $P \in \mathbb{R}^{n\times n}$ as input whose entries $P_{ij}$ are a measure of affinity between the objects $i$ and $j$. We then train the following loss function to generate embedding vectors (contained in the rows of $X$) that best approximate the input distribution described by the matrix $P$.
+$$
+X = {\rm arg~min}_{Y \in \mathcal{U}_{n\times d}} \sum_{i = 1}^n\Bigg[ - \underbrace{\sum_{j = 1}^n P_{ij}{\rm log}\left({\rm SoftMax}(YY^T)_{ij}\right)}_{\rm cross-entropy} + \underbrace{\frac{1}{n} y_i^T\sum_{j = 1}^n y_j}_{\rm regularization}\Bigg]\,\,,
+$$
+
+where $y_i$ is the $i$-th row of $Y$ and $\mathcal{U}_{n \times d}$ is the set of all matrices of size $n\times d$ whose rows have unitary norm. In words, we propose a variational approach based on the use of the softmax function of $XX^T$ to learn the embedding, in the spirit of *2Vec* algorithms. 
+
+In (Dall'Amico, Belliardo - *Learning distributed representations with efficient SoftMax normalization*) we described an efficient way to estimate in $\mathcal{O}(n)$ operations the normalization constants of ${\rm SoftMax}(XX^T)$ and hence to optimize the efficiently the proposed loss function.
+
+In our implementation, we also consider the case in which $P$ is a rectangular matrix $P\in \mathbb{R}^{n\times m}$ and two embedding matrices need to be learned: $X \in \mathbb{R}^{n\times d}, Y \in \mathbb{R}^{m\times d}$. We refer the reader to the paper and to the documentation for further details on this use case.
+
+> We refer the user to the [**paper**](https://openreview.net/pdf?id=9M4NKMZOPu) and to the [**documentation**]() for further details and examples.
+
+
+## Installation
+
+To install the latest version of `EDRep`, you can run the following command from the terminal.
+
+```bash
+pip install git+https://github.com/lorenzodallamico/EDRep.git
+```
+
+We also shared an `Anaconda` environment in which all codes were run and tested. You can create it by running the following commands in the terminal
+
+```bash
+conda env create -f EDRep_env.yml
+conda activate EDRep
+```
+
+## Citation
+
+If you make use of these codes, please use the following citation:
 
 
 ```
@@ -16,89 +52,10 @@ This is the code related to (Dall'Amico, Belliardo *Efficient distributed repres
 }
 ```
 
-## Content
-
-* `Community detection`: this notebook is meant to be provide an example of usage of our algorithm, applied to the problem of community detection described in the paper.
-* `utils`: this folder contains all the relevant source code:
-    * `dcsbm`: these functions are used to generate synthetic graphs with a community structure and to run the competing community detection algorithms.
-    * `EDRep`: this is the main file in which we have the function to create an embedding of a probability distribution
-    * `node_embedding`: this is the main function to create a graph node embedding
-* `EDRep_env.yml`: this file can be used to create a conda environment with all the useful packages to run our codes.
-
-## Requirements
-
-To easily run our codes you can create a conda environment using the commands
-
-```
-conda env create -f EDRep_env.yml
-conda activate EDRep
-```
-
-## Use
-
-For the use of our package, we invite the practitioner to refer to the jupyter notebooks contained in the `Notebooks` folder. We here report the comment lines of the three main functions that can used from our package.
-
-</br>
-
-* The function `CreateEmbedding` is the main function and it provides a distributed representation given a probability matrix
-
-    ```python
-    res = CreateEmbedding(Pv)
-    ```
-
-    > **Inputs**:
-    >
-    >>   * Pv (list sparse array): the P matrix is provided by the product of all the elements appearing in Pv.from right to left. If `sum_partials = True` the total matrix `P = (Pv[0] + Pv[1]@Pv[0] + Pv[2]@Pv[1]@Pv[0] + ...)/len(Pv) `. If the resulting matrix P is not a probability matrix (hence it its rows do not sum up to 1), a warning is raised.
-    >
-    > **Optional inputs**:
-    >
-    >>   * dim (int): dimension of the embedding. By default set to 128
-    >>   * p0 (array): array of size n that specifies the "null model" probability
-    >>   * n_epochs (int): number of iterations in the optimization process. By default set to 30
-    >>   * sum_partials (bool): refer to the description of `Pv` for the use of this parameter. The default value is `False`
-    >>   * k (int): order of the GMM approximation. By default set to 1
-    >>   * η (float): largest adimissible learning rate. By default set to 0.8.
-    >>   * verbose (bool): determines whether the algorithm produces some output for the updates. By default set to True
-    >>   * sym (bool): if True (default) generates a single embedding, while is False it generates two
-    >
-    >    
-    > **Output**: The function returns a class with the following elements:
-    >
-    >>  * EDRep.X (array): solution to the optimization problem for the input weights
-    >>  * EDRep.Y (array): solution to the optimization problem for the input weights
-    >>  * EDRep.ℓ (array): label vector
-
-</br>
-
-* The function `NodeEmbedding` creates a node distributed representation of a graph given its adajcency matrix representation. The graph can be directed or undirected and it can be weigted, but weights must be non-negative.
-
-    ```python
-    res = NodeEmbedding(A, dim)
-    ```
-
-    > **Inputs**:
-    >
-    >>  * A (scipy sparse matrix): graph adjacency matrix. It can be weighted and non-symmetric, but its entries must be non-negative
-    >>  * dim (int): embedding dimension
-    >    
-    > **Optional inputs**:
-    >
-    >>  * n_epochs (int): number of training epochs in the optimization. By default set to 30
-    >>  * walk_length (int): maximal distance reached by the random walker. By default set to 5
-    >>  * k (int): order of the mixture of Gaussian approximation. By default set to 1
-    >>  * verbose (bool): if True (default) it prints the update
-    >>  * η (float): learning rate, by default set to 0.5
-    >>  * sym (bool): determines whether to use the symmetric (detfault) version of the algoritm
-    >    
-    > **Output**:
-    >> * res: EDREp class
-
-</br>
-
 ## Authors
 
 * [Lorenzo Dall'Amico](https://lorenzodallamico.github.io/) - lorenzo.dallamico@isi.it
-* Enrico Maria Belliardo - enrico.belliardo@isi.it
+* Enrico Maria Belliardo - enrico.m.belliardo@gmail.com
 
 ## License
 This software is released under the GNU AFFERO GENERAL PUBLIC LICENSE (see included file LICENSE)
