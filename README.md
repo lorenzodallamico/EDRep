@@ -1,7 +1,7 @@
 <!-- <font size="7"><span style = "color:#4a5759">EDRep</span></font><br /> 
 <font size="5"><span style = "color:#6b9080"> <b>E</b>fficient <b>d</b>istributed <b>rep</b>resentations with linear-time SoftMax normalization</span></font><br /> -->
 
-![Alt text](img/logo.png)
+![](img/logo.png)
 
 
 <!-- | **[Documentation]()** | **[Paper](https://openreview.net/pdf?id=9M4NKMZOPu)** | -->
