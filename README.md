@@ -11,7 +11,7 @@
 
 This is the Python implementation of the work presented in [(Dall'Amico, Belliardo - *Learning distributed representations with efficient SoftMax normalization*)](https://openreview.net/pdf?id=9M4NKMZOPu). We propose a *2Vec*-like algorithm, formulated for as a general purpose embedding problem. We consider a set of $n$ objects for which we want to obtain a distributed representation $X \in \mathbb{R}^{n\times d}$ in a $d$-dimensional Euclidean space. The algorithm requires a probability matrix $P \in \mathbb{R}^{n\times n}$ as input whose entries $P_{ij}$ are a measure of affinity between the objects $i$ and $j$. We then train the following loss function to generate embedding vectors (contained in the rows of $X$) that best approximate the input distribution described by the matrix $P$.
 
-![Alt text](img/eq.png)
+<img src="img/eq.png" alt="logo" style="height:120px;" />
 
 where $y_i$ is the $i$-th row of $Y$ and $\mathcal{U}_{n \times d}$ is the set of all matrices of size $n\times d$ whose rows have unitary norm. In words, we propose a variational approach based on the use of the softmax function of $XX^T$ to learn the embedding, in the spirit of *2Vec* algorithms. 
 
