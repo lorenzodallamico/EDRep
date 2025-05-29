@@ -1,12 +1,6 @@
 <img src="img/logo.png" alt="logo" style="height:120px;" />
 
-<!-- | **[Documentation]()** | **[Paper](https://openreview.net/pdf?id=9M4NKMZOPu)** | -->
-
-| **[Paper](h<!-- <font size="7"><span style = "color:#4a5759">EDRep</span></font><br /> 
-<font size="5"><span style = "color:#6b9080"> <b>E</b>fficient <b>d</b>istributed <b>rep</b>resentations with linear-time SoftMax normalization</span></font><br /> -->
-
-ttps://openreview.net/pdf?id=9M4NKMZOPu)** |
-
+<!-- | **[Documentation]()** --> | **[Paper](https://openreview.net/pdf?id=9M4NKMZOPu)** | 
 
 This is the Python implementation of the work presented in [(Dall'Amico, Belliardo - *Learning distributed representations with efficient SoftMax normalization*)](https://openreview.net/pdf?id=9M4NKMZOPu). We propose a *2Vec*-like algorithm, formulated for as a general purpose embedding problem. We consider a set of $n$ objects for which we want to obtain a distributed representation $X \in \mathbb{R}^{n\times d}$ in a $d$-dimensional Euclidean space. The algorithm requires a probability matrix $P \in \mathbb{R}^{n\times n}$ as input whose entries $P_{ij}$ are a measure of affinity between the objects $i$ and $j$. We then train the following loss function to generate embedding vectors (contained in the rows of $X$) that best approximate the input distribution described by the matrix $P$.
 
