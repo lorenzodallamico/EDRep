@@ -37,14 +37,15 @@ If you make use of these codes, please use the following citation:
 
 
 ```
-@misc{dallamico2024efficient,
-      title={Efficient distributed representations with linear-time attention scores normalization}, 
-      author={Lorenzo Dall'Amico and Enrico Maria Belliardo},
-      year={2024},
-      eprint={2303.17475},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2303.17475}, 
+@article{
+dall'amico2025learning,
+title={Learning distributed representations with efficient SoftMax normalization},
+author={Lorenzo Dall'Amico and Enrico Maria Belliardo},
+journal={Transactions on Machine Learning Research},
+issn={2835-8856},
+year={2025},
+url={https://openreview.net/forum?id=9M4NKMZOPu},
+note={}
 }
 ```
 
