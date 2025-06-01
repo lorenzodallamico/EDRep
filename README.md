@@ -1,5 +1,7 @@
 # EDRep
 
+### Dall'Amico, Belliardo - *Learning distributed representations with efficient SoftMax normalization*
+
 <!-- | **[Documentation]()** --> 
 | **[Paper](https://openreview.net/pdf?id=9M4NKMZOPu)** | 
 
