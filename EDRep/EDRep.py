@@ -33,9 +33,9 @@ class EDRep_class:
         self.ℓ = ℓ
 
 
-def CreateEmbedding(Pv: list, dim : int = 128, p0 = None, n_epochs : int = 30, sum_partials :bool = False, k :int = 1, η : float = .8, verbose : bool = True, sym : bool= True):
+def CreateEmbedding(Pv: list, dim: int = 128, p0 = None, n_epochs : int = 30, sum_partials : bool = False, k :int = 1, eta: float = .8, verbose: bool = True, sym: bool = True):
     '''
-    This function implemnts the EDRep algorithm
+    This function creates a distributed representation of a probability distribution as presented in (Dall'Amico, Belliardo: Efficient distributed representation of complex entities beyond negative sampling)
 
     Use: EDRep = CreateEmbedding(Pv)
 
@@ -48,9 +48,9 @@ def CreateEmbedding(Pv: list, dim : int = 128, p0 = None, n_epochs : int = 30, s
         * n_epochs (int): number of iterations in the optimization process. By default set to 30
         * sum_partials (bool): refer to the description of `Pv` for the use of this parameter. The default value is `False`
         * k (int): order of the GMM approximation. By default set to 1
-        * η (float): largest adimissible learning rate. By default set to 0.8.
+        * eta (float): largest adimissible learning rate. By default set to 0.8.
         * verbose (bool): determines whether the algorithm produces some output for the updates. By default set to True
-        * sym (bool): if True (default) generates a single embedding, while is False it generates two embedding.
+        * sym (bool): if True (default) generates a single embedding, while is False it generates two
         
     Output:
         The function returns a class with the following elements:
@@ -73,7 +73,7 @@ def CreateEmbedding(Pv: list, dim : int = 128, p0 = None, n_epochs : int = 30, s
     if verbose:
         print('Running the optimization for k = 1')
 
-    X, Y = _Optimize(Pv, ℓ, p0, sum_partials, dim, n_epochs, η, verbose, sym)
+    X, Y = _Optimize(Pv, ℓ, p0, sum_partials, dim, n_epochs, eta, verbose, sym)
 
     # re-run the optimization for k > 1
     if k > 1:
@@ -86,7 +86,7 @@ def CreateEmbedding(Pv: list, dim : int = 128, p0 = None, n_epochs : int = 30, s
         if verbose:
             print("Running the optimization for k = " + str(k))
 
-        X, Y = _Optimize(Pv, ℓ, p0, sum_partials, dim, n_epochs, η, verbose, sym)
+        X, Y = _Optimize(Pv, ℓ, p0, sum_partials, dim, n_epochs, eta, verbose, sym)
 
     return EDRep_class(X, Y, ℓ)
 
@@ -99,7 +99,7 @@ class Zest_class:
         self.Ω = Ω
         self.π = π
 
-def computeZest(X: np.ndarray, indeces : np.ndarray, k : int = 5):
+def computeZest(X: np.ndarray, indeces: np.ndarray, k: int = 5):
     '''This function provides the k order approximation of the Z_i for a set of indes.
 
     Use: Zest = computeZest(X, indeces, k = 5)
@@ -121,6 +121,7 @@ def computeZest(X: np.ndarray, indeces : np.ndarray, k : int = 5):
     '''
 
     n, dim = np.shape(X)
+
 
     if k > 1:
         # estimate the mixture parameters using kmeans
@@ -221,11 +222,11 @@ def _Optimize(Pv, ℓ, p0, sum_partials, dim, n_epochs, η, verbose, sym):
             print("[%-25s] %d%%" % ('='*(int((epoch+1)  /n_epochs*25)-1) + '>', (epoch+1)/(n_epochs)*100), end = '\r')
 
         # compute the gradient
-        GRADX, GRADY = _computeGrad(Pv, X, Y, ℓ, p0, sum_partials)
+        GRADX, GRADY = _computeGrad(Pv, X, Y, ℓ, p0, sum_partials, sym)
         
         # update the weights
         if sym:
-            GRAD = GRADX + GRADY
+            GRAD = GRADX
             D = diags((GRAD * X).sum(axis = 1))
             GRAD = GRAD - D@X
             GRAD = normalize(GRAD, norm = 'l2', axis = 1)
@@ -249,7 +250,7 @@ def _Optimize(Pv, ℓ, p0, sum_partials, dim, n_epochs, η, verbose, sym):
     return X,Y
 
 
-def _computeGrad(Pv, X, Y, ℓ, p0, sum_partials):
+def _computeGrad(Pv, X, Y, ℓ, p0, sum_partials, sym):
     '''
     This function computes the gradient of the loss function
 
@@ -293,8 +294,8 @@ def _computeGrad(Pv, X, Y, ℓ, p0, sum_partials):
     u = np.reshape(np.ones(n), (n,1))
     E = np.sum(p0)
 
-    return -U + Zgrad + (u@(P0.T@Y))/E, -Ut + P0@(u.T@X)/E
-
+    return -U + Zgrad + (u@(P0.T@Y))/E + u@(u.T@X)/n*(1-sym), -Ut + P0@(u.T@X)/E + P0@(P0.T@Y)/E*(1-sym)
+    
 
 
 def _computeUsum(Pv, X, Y):
