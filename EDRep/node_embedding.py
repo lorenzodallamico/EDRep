@@ -37,6 +37,6 @@ def NodeEmbedding(A: csr_matrix, dim: int, n_epochs : int = 30, walk_length: int
  
     # Eder
     embedding = CreateEmbedding([P for i in range(walk_length)], dim = dim, n_epochs = n_epochs, 
-                        sum_partials = True, k = k, verbose = verbose, η = eta, sym = sym)
+                        sum_partials = True, k = k, verbose = verbose, eta = eta, sym = sym)
     
     return embedding
