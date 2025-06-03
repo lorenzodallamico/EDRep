@@ -31,7 +31,7 @@ def NodeEmbedding(A: csr_matrix, dim: int, n_epochs : int = 30, walk_length: int
     
     # create the probability matrix
     n = A.shape[0]
-    d = A@np.ones(n)
+    d = np.maximum(np.ones(n), A@np.ones(n))
     D_1 = diags(d**(-1))
     P = D_1.dot(A)
  
