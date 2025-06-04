@@ -31,7 +31,7 @@ In the following pages we describe the main features implemented in this package
 ```{tableofcontents}
 ```
 
-## Citation
+### Citation
 
 If you make use of these codes, please use the following citation:
 
