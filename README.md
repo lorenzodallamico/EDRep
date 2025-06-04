@@ -2,7 +2,7 @@
 
 ### Dall'Amico, Belliardo - *Learning distributed representations with efficient SoftMax normalization*
 
-| **[Documentation](https://lorenzodallamico.github.io/EDRep/intro.html)** 
+| **[Documentation](https://lorenzodallamico.github.io/EDRep/intro.html#)** 
 | **[Paper](https://openreview.net/pdf?id=9M4NKMZOPu)** | 
 
 ```bash
