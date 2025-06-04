@@ -2,7 +2,7 @@
 
 ### Dall'Amico, Belliardo - *Learning distributed representations with efficient SoftMax normalization*
 
-<!-- | **[Documentation]()** --> 
+| **[Documentation](https://lorenzodallamico.github.io/EDRep/intro.html)** 
 | **[Paper](https://openreview.net/pdf?id=9M4NKMZOPu)** | 
 
 ```bash
@@ -18,7 +18,7 @@ In our implementation, we also consider the case in which $P$ is a rectangular m
 
 <!-- > We refer the user to the [**paper**](https://openreview.net/pdf?id=9M4NKMZOPu) and to the [**documentation**]() for further details and examples. -->
 
-> We refer the user to the [**paper**](https://openreview.net/pdf?id=9M4NKMZOPu) for further details.
+> We refer the user to the [**paper**](https://openreview.net/pdf?id=9M4NKMZOPu) and to the [**documentation**](https://lorenzodallamico.github.io/EDRep/intro.html) for further details.
 
 
 ## Requirements
