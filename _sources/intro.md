@@ -3,6 +3,7 @@
 <font size="4"><span style = "color:#4a5759">Lorenzo Dall'Amico, Enrico Maria Belliardo</span></font><br /> 
 
 
+
 ## Welcome!
 
 This is the documentation of the `EDRep` Python package. The code described here is associated with this [**paper**](https://openreview.net/pdf?id=9M4NKMZOPu).
@@ -14,7 +15,7 @@ This is the documentation of the `EDRep` Python package. The code described here
 You can install the `EDRep` package with pip running the following command from the terminal.
 
 ```bash
-pip install git+https://github.com/lorenzodallamico/EDRep.git
+pip install EDRep
 ```
 
 We also shared an `Anaconda` environment in which all codes were run and tested. You can create it by running the following commands in the terminal
