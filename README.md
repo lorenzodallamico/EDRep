@@ -6,7 +6,7 @@
 | **[Paper](https://openreview.net/pdf?id=9M4NKMZOPu)** | 
 
 ```bash
-pip install git+https://github.com/lorenzodallamico/EDRep.git
+pip install EDRep
 ```
 ---
 

@@ -1,11 +1,13 @@
 LICENCE
 README.md
 pyproject.toml
+requirements.txt
 EDRep/EDRep.py
 EDRep/__init__.py
 EDRep/node_embedding.py
 EDRep.egg-info/PKG-INFO
 EDRep.egg-info/SOURCES.txt
 EDRep.egg-info/dependency_links.txt
+EDRep.egg-info/requires.txt
 EDRep.egg-info/top_level.txt
 tests/test_EDRep.py
