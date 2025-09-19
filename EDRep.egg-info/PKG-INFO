@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: EDRep
-Version: 0.1.1
+Version: 0.1.2
 Summary: Efficient distributed representations with linear-time Softmax normalization
 Author-email: "Lorenzo Dall'Amico, Enrico Maria Belliardo" <lorenzo.dallamico@isi.it>
 Requires-Python: >=3.9

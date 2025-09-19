@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "EDRep"
-version = "0.1.1"
+version = "0.1.2"
 description = "Efficient distributed representations with linear-time Softmax normalization"
 readme = "README.md"
 license = { file = "LICENSE" }
