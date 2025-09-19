@@ -10,4 +10,3 @@ EDRep.egg-info/SOURCES.txt
 EDRep.egg-info/dependency_links.txt
 EDRep.egg-info/requires.txt
 EDRep.egg-info/top_level.txt
-tests/test_EDRep.py

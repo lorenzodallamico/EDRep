@@ -6,10 +6,10 @@ Author-email: "Lorenzo Dall'Amico, Enrico Maria Belliardo" <lorenzo.dallamico@is
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
 License-File: LICENCE
-Requires-Dist: faiss_cpu==1.9.0.post1
-Requires-Dist: numpy==2.3.2
-Requires-Dist: scikit_learn==1.7.1
-Requires-Dist: scipy==1.16.1
+Requires-Dist: faiss-cpu
+Requires-Dist: numpy
+Requires-Dist: scikit_learn
+Requires-Dist: scipy
 Dynamic: license-file
 
 # EDRep
@@ -20,7 +20,7 @@ Dynamic: license-file
 | **[Paper](https://openreview.net/pdf?id=9M4NKMZOPu)** | 
 
 ```bash
-pip install git+https://github.com/lorenzodallamico/EDRep.git
+pip install EDRep
 ```
 ---
 
